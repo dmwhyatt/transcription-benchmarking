@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+.pytest_cache/
+.f0-cache/
+*.json.gz
+
+# Benchmark working files: caches, saved results, and downloaded corpora.
+.cache/
+results/
+*.result.json

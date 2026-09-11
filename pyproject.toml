@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "transcription-benchmarking"
+version = "0.1.0"
+description = "Note-level benchmarking for music transcription systems, with confidence intervals and reproducible provenance"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { file = "LICENSE" }
+authors = [{ name = "David Whyatt" }]
+keywords = ["music information retrieval", "transcription", "benchmark",
+            "evaluation", "mir_eval", "singing", "melody"]
+classifiers = [
+    # PyPI refuses any upload carrying this classifier. It is here on purpose:
+    # the package is not published, and until someone decides otherwise a
+    # mistaken "twine upload" should fail rather than claim the name. Remove
+    # this line deliberately, as the act of deciding to publish.
+    "Private :: Do Not Upload",
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Topic :: Multimedia :: Sound/Audio :: Analysis",
+]
+
+# No transcriber is a dependency, and none ever should be: a benchmark that
+# installs the system it measures cannot credibly measure anything else.
+# librosa and soundfile are here for reading audio and for the reference
+# alignment, not for transcribing.
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "librosa>=0.10",      # pYIN for alignment, DTW, resampling
+    "soundfile>=0.12",
+    "pretty_midi>=0.2.10",
+    "mir_eval>=0.7",      # the transcription metrics
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0", "build>=1.0"]
+
+[project.scripts]
+transcription-benchmark = "transcription_benchmarking.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/dmwhyatt/transcription-benchmarking"
+Issues = "https://github.com/dmwhyatt/transcription-benchmarking/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["slow: needs a real transcriber installed"]
