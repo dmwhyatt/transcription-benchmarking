@@ -259,8 +259,23 @@ def cmd_build(args) -> int:
                 log(f"{system.name}: no Dockerfile at {context}, skipping")
                 failures.append(system.name)
                 continue
-            result = run(["docker", "build", "-t", system.tag, str(context)],
-                         check=False, dry=args.dry_run)
+            try:
+                result = run(["docker", "build", "--progress=plain",
+                              "-t", system.tag, str(context)],
+                             check=False, dry=args.dry_run,
+                             timeout=getattr(args, "build_timeout", 3600))
+            except subprocess.TimeoutExpired:
+                # A build that waits for input does not fail, it waits. The
+                # classic is tzdata asking for a geographic area, which every
+                # Dockerfile here now suppresses -- but a timeout is what
+                # turns the next one anybody meets into a message instead of
+                # an afternoon.
+                log(f"{system.name}: build exceeded "
+                    f"{getattr(args, 'build_timeout', 3600)}s and was killed. "
+                    "If it was sitting at a prompt, that is a bug in the "
+                    "Dockerfile, not a slow machine.")
+                failures.append(system.name)
+                continue
         if not args.dry_run and result.returncode != 0:
             failures.append(system.name)
         if getattr(args, "prune", False) and not args.dry_run:
@@ -504,6 +519,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     build.add_argument("--include-planned", action="store_true")
     build.add_argument("--prune", action="store_true",
                        help="docker builder prune between images, for a tight disk")
+    build.add_argument("--build-timeout", type=int, default=3600,
+                       help="seconds before a build is assumed stuck (default 3600)")
 
     sub.add_parser("fetch", help="download checkpoints")
 

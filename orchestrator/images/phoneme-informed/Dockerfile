@@ -18,6 +18,16 @@
 #   /out    writable; must contain midi/<same relative path>.mid and adapter.json
 FROM pytorch/pytorch:1.13.1-cuda11.6-cudnn8-runtime
 
+# Build-time only, and both are about not hanging.
+#
+# tzdata's post-install asks for a geographic area, and ffmpeg pulls tzdata in.
+# Under the legacy builder that prompt renders a menu and waits forever: not a
+# failure that stops the build, a build that never finishes. ARG rather than
+# ENV so it does not persist into the image and confuse apt at run time.
+ARG DEBIAN_FRONTEND=noninteractive
+# Likewise git: fail on a credential prompt instead of blocking on one.
+ARG GIT_TERMINAL_PROMPT=0
+
 RUN apt-get update && apt-get install -y --no-install-recommends git ffmpeg libsndfile1 \
     && rm -rf /var/lib/apt/lists/*
 
