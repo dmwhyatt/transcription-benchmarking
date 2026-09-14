@@ -393,6 +393,14 @@ def transcribe_one(system, audio_dir: Path, expected: int, work: Work, args) -> 
             "-v", f"{out}:/out",
             "-v", f"{work.ckpt(system.name)}:/ckpt:ro",
             "-v", f"{work.cache(system.name)}:/cache"]
+
+    # The adapter is COPYed into the image so it can run standalone, and
+    # mounted over that copy here so it is never the stale one. Editing an
+    # adapter used to mean remembering to rebuild; forgetting produced
+    # failures that looked like the bug you had just fixed still happening.
+    adapter = HERE / "images" / system.name / "adapter.py"
+    if adapter.exists():
+        argv += ["-v", f"{adapter}:/adapter.py:ro"]
     if system.gpu and not args.no_gpu:
         argv += ["--gpus", "all"]
     # Offline by default: a system that quietly downloads a model at run time

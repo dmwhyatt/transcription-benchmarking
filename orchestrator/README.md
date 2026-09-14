@@ -71,6 +71,16 @@ image that quietly downloads a model at run time fails here rather than in six
 months. Weights are baked at build time where the licence allows.
 They also run as the invoking user, so the output is not left owned by root.
 
+## Editing an adapter
+
+`adapter.py` is copied into the image so it can run standalone, and mounted
+over that copy at run time so the file on disk is always the one that runs.
+Edit an adapter and re-run `transcribe`; no rebuild.
+
+A Dockerfile change is different and does need `build`. The distinction
+matters because a stale adapter does not announce itself -- it reproduces the
+bug you just fixed, which is indistinguishable from not having fixed it.
+
 ## Systems
 
 `./bench.py doctor` prints this live. Nine are ready to build:
