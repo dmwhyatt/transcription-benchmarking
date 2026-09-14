@@ -89,6 +89,22 @@ def main():
     argv = ["python3", "inference/rosvot.py",
             "--metadata", str(meta_path), "-o", str(produced_dir),
             "--ckpt", str(rosvot_ckpt), "--verbose"]
+
+    # ROSVOT loads its pitch extractor from hparams['pe_ckpt'], whose default
+    # in the shipped config is the relative path checkpoints/rmvpe/model.pt.
+    # Relative to /app, where nothing is mounted. It is not a flag, but the
+    # hparams system takes key=value overrides, so point it at the real file.
+    overrides = []
+    rmvpe = find_model(CKPT, "rmvpe")
+    if rmvpe is not None:
+        overrides.append(f"pe_ckpt={rmvpe}")
+    else:
+        print("WARNING: no rmvpe/model.pt under /ckpt. ROSVOT extracts pitch "
+              "with RMVPE and will fail looking for a relative path.",
+              file=sys.stderr)
+    if overrides:
+        argv += ["--hparams", ",".join(overrides)]
+
     wbd = find_model(CKPT, "rwbd")
     if wbd is not None:
         argv += ["--apply_rwbd", "--wbd_ckpt", str(wbd)]
