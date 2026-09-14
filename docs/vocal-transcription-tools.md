@@ -124,6 +124,41 @@ then installation. Nothing was excluded on the strength of its abstract alone,
 and nothing was included on the strength of its README alone -- every included
 repository was read.
 
+### Excluded candidates
+
+The eighteen, named individually so each exclusion is arguable rather than
+invisible. Several are excluded *and* important: E1 in particular contains the
+components most of the included systems are built out of.
+
+| Candidate | By | Reason | Found via |
+|---|---|---|---|
+| [CREPE](https://github.com/marl/crepe) | E1 | f0 only. The tracker CREPE Notes segments; its accuracy bounds that system from below. | link from crepe_notes |
+| pYIN (as an f0 estimator) | E1 | f0 only. Its *note* output comes from the Vamp plugin, which is why Tony is included and this is not. | S16 |
+| [RMVPE](https://github.com/yxlllc/RMVPE) | E1 | f0 only. Ships as the pitch stage inside ROSVOT, SOME and STARS. | link from ROSVOT and SOME READMEs |
+| [PESTO](https://github.com/SonyCSLParis/pesto) | E1 | f0 only. An alternative CREPE Notes backend. | link from crepe_notes README |
+| [PENN](https://github.com/interactiveaudiolab/penn) | E1 | f0 only. Ditto. | link from crepe_notes README |
+| [torchcrepe](https://github.com/maxrmorrison/torchcrepe) | E1 | f0 only. Ditto, and the backend this survey fell back to when `crepe` would not build. | link from crepe_notes README |
+| SPICE | E1 | f0 only, self-supervised. TF Hub artefact rather than a transcription system. | prior knowledge |
+| Praat / Parselmouth | E1 | f0 only. Included here because people do reach for it, and it does not do notes. | prior knowledge |
+| Melodyne (Celemony) | E2 | Closed, commercial. The professional default for per-note vocal editing and the strongest omission in this survey. | prior knowledge |
+| AnthemScore | E2 | Closed, commercial. | prior knowledge |
+| Klangio / Melody Scanner | E2 | Closed, commercial, API and web only. | prior knowledge |
+| Dubler 2 (Vochlea) | E2 | Closed, commercial. Real-time voice-to-MIDI controller; a different task (latency over accuracy). | prior knowledge |
+| DAW built-ins (Logic, Ableton, Cubase audio-to-MIDI) | E2 | Closed, and not scriptable over a corpus. What a musician actually uses, and unmeasurable here. | prior knowledge |
+| Onsets and Frames, ByteDance piano transcription | E3 | Piano-specific. Fails I2. Listed because they are what "AMT" usually means in the literature. | lineage from MT3 |
+| [SSVD-v2.0](https://github.com/xk-wang/SSVD-v2.0) | E4 | Dataset, not a system: MusicYOLO's sight-singing training and evaluation data. | S10 |
+| [HumTrans](https://github.com/shansongliu/HumTrans) | E4 | Dataset, not a system: humming transcription. Relevant if the task ever widens to humming. | S3 |
+| MIR-ST500 | E4 | Dataset, not a system. Already one of this project's corpora. | S3 |
+| [Note-Segmentation-SSL](https://github.com/B05901022/Note-Segmentation-SSL) | E4 | VOCANO's training-only repository; no inference path of its own. | link from VOCANO README |
+
+Two of these deserve a second look if the survey's scope ever changes. **E2 is
+a scoping decision, not a judgement**: Melodyne is the tool a working musician
+would use, and this survey cannot say whether any of the systems below beats
+it. And **E1 is not a rejection of the approach** -- an f0 estimator plus a
+segmenter is precisely what CREPE Notes is, and what this project's own
+transcriber is, so the trackers listed there are components to swap rather than
+competitors to beat.
+
 ### Threats to validity
 
 **English-language search only.** Much of the singing-transcription ecosystem
@@ -163,6 +198,11 @@ Below that line: **Omnizart** (`vocal`) via its Docker image since pip fails,
 **YourMT3+** if you want a multi-instrument model that claims direct vocal
 transcription, and **VocalParse** if you are willing to write a token-sequence
 to MIDI converter for a 1.7B checkpoint.
+
+`orchestrator/` runs this list: one pinned image per system, the same
+read-only audio into all of them, MIDI out under one naming convention, then
+`--estimates` and a paired comparison of every pair. Nine of the systems below
+have images; the rest are registered with what is missing.
 
 Run them all before believing any ordering among them, and be careful about
 what the ordering supports. Forty recordings support "COnP 0.59, 95% CI
