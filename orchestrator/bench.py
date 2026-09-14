@@ -133,6 +133,16 @@ class Work:
 # commands
 
 
+def base_images() -> List[str]:
+    """The FROM lines of every Dockerfile here, so doctor can verify the tags."""
+    found = set()
+    for dockerfile in sorted((HERE / "images").glob("*/Dockerfile")):
+        for line in dockerfile.read_text().splitlines():
+            if line.strip().upper().startswith("FROM "):
+                found.add(line.split(None, 1)[1].split(" AS ")[0].strip())
+    return sorted(found)
+
+
 def cmd_doctor(args) -> int:
     """Say what this machine can and cannot do, before anything slow starts."""
     ok = True
@@ -182,6 +192,19 @@ def cmd_doctor(args) -> int:
     free_gb = usage.free / 2**30
     check(f"free space {free_gb:.0f} GB", free_gb > 60,
           "the nine ready images are roughly 40-60 GB together")
+
+    print("\nbase images")
+    print("         (these tags were pinned in an environment with no docker;")
+    print("          a wrong one costs a long build before it fails, so check first)")
+    for base in sorted(base_images()):
+        if not daemon:
+            print(f"  [skip]  {base} -- no daemon to ask")
+            continue
+        probe = subprocess.run(["docker", "manifest", "inspect", base],
+                               capture_output=True, text=True)
+        check(base, probe.returncode == 0,
+              "" if probe.returncode == 0
+              else "tag not found; pick a nearby one from the same repository")
 
     print("\nsystems")
     for system in registry.SYSTEMS:
