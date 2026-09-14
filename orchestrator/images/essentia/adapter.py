@@ -56,6 +56,11 @@ def main():
         row["seconds"] = round(time.time() - started, 2)
         rows.append(row)
         print(f"{'ok  ' if row['status'] == 'ok' else 'FAIL'} {relative}", flush=True)
+        if row["status"] != "ok" and row.get("error"):
+            # The reason belongs on screen. Burying it in adapter.json means
+            # the orchestrator reports "0/2 transcribed" and nothing else.
+            for line in str(row["error"]).strip().splitlines()[-8:]:
+                print(f"       {line}", flush=True)
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "adapter.json").write_text(json.dumps(
         {"system": "essentia", "items": rows}, indent=2))

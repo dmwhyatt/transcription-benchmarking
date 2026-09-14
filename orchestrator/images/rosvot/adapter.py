@@ -45,6 +45,21 @@ def main():
         print("no audio under /audio", file=sys.stderr)
         return 2
 
+    # ROSVOT derives its config path from the checkpoint's directory, so a
+    # missing checkpoint surfaces as "Wrong config path!" from deep inside
+    # set_hparams rather than as the missing download it is. Check here.
+    needed = [CKPT / "rosvot" / "model.pt", CKPT / "rosvot" / "config.yaml"]
+    missing = [str(path) for path in needed if not path.exists()]
+    if missing:
+        print("ROSVOT's weights are not mounted. Missing:", file=sys.stderr)
+        for path in missing:
+            print(f"  {path}", file=sys.stderr)
+        print("\nRun `bench.py fetch --only rosvot` for the instructions: the "
+              "download is a Google Drive zip that Drive rate-limits, so it "
+              "needs a human. Unzip it so that <ckpt>/rosvot/ and <ckpt>/rwbd/ "
+              "each hold a model.pt and its config.yaml.", file=sys.stderr)
+        return 2
+
     by_item = {item_name(p.relative_to(AUDIO)): p.relative_to(AUDIO)
                for p in sources}
     metadata = [{"item_name": item_name(p.relative_to(AUDIO)),

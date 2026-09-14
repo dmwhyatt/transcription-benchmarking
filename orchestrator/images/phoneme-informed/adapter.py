@@ -51,6 +51,9 @@ def main():
             row["error"] = (proc.stderr or proc.stdout)[-400:]
         rows.append(row)
         print(f"{'ok  ' if ok else 'FAIL'} {relative}", flush=True)
+        if not ok and row.get("stderr", row.get("error")):
+            for line in str(row.get("stderr") or row.get("error")).strip().splitlines()[-8:]:
+                print(f"       {line}", flush=True)
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "adapter.json").write_text(json.dumps(
         {"system": "phoneme-informed", "bpm": BPM, "items": rows}, indent=2))

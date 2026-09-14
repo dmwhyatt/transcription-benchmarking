@@ -52,6 +52,9 @@ def main():
                      "seconds": round(time.time() - started, 2),
                      "stderr": "" if ok else proc.stderr[-400:]})
         print(f"{'ok  ' if ok else 'FAIL'} {relative}", flush=True)
+        if not ok and row.get("stderr", row.get("error")):
+            for line in str(row.get("stderr") or row.get("error")).strip().splitlines()[-8:]:
+                print(f"       {line}", flush=True)
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "adapter.json").write_text(json.dumps(
         {"system": "basic-pitch", "items": rows}, indent=2))

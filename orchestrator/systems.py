@@ -44,7 +44,6 @@ class System:
     title: str                # for reports
     licence: str
     image: str = ""           # defaults to bench/<name>
-    pull: Optional[str] = None       # use this upstream image, do not build
     gpu: bool = False                # request --gpus all
     cpu_ok: bool = True              # will still run without a GPU
     checkpoint: Optional[Checkpoint] = None
@@ -118,10 +117,11 @@ SYSTEMS: List[System] = [
         approx_gb=4.0,
         title="Omnizart vocal (VOCANO, MCT Lab)",
         licence="MIT",
-        pull="mctlab/omnizart:latest",
         checkpoint=Checkpoint(kind="in-image"),
-        notes="Uses the upstream image, because pip install omnizart fails on "
-              "pyaudio/portaudio.h and the image already solves it.",
+        notes="Builds FROM the upstream image, because pip install omnizart "
+              "fails on pyaudio/portaudio.h and that image already solves it. "
+              "It is still built rather than pulled: an image without this "
+              "directory's adapter in it does not honour the contract.",
     ),
     System(
         name="mirst500",

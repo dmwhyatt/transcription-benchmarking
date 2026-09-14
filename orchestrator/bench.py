@@ -266,36 +266,34 @@ def cmd_build(args) -> int:
     work = Work(Path(args.work))
     failures = []
     for system in selected(args):
-        if system.pull:
-            log(f"{system.name}: pulling {system.pull}")
-            result = run(["docker", "pull", system.pull], check=False, dry=args.dry_run)
-            if result.returncode == 0 and not args.dry_run:
-                run(["docker", "tag", system.pull, system.tag], check=False)
-        else:
-            context = HERE / "images" / system.name
-            if not (context / "Dockerfile").exists():
-                log(f"{system.name}: no Dockerfile at {context}, skipping")
-                failures.append(system.name)
-                continue
-            logfile = work.logs / f"build-{system.name}.log"
-            try:
-                result = run(["docker", "build", "--progress=plain",
-                              "-t", system.tag, str(context)],
-                             check=False, dry=args.dry_run, capture=True,
-                             timeout=getattr(args, "build_timeout", 3600),
-                             tee=None if args.dry_run else logfile)
-            except subprocess.TimeoutExpired:
-                # A build that waits for input does not fail, it waits. The
-                # classic is tzdata asking for a geographic area, which every
-                # Dockerfile here now suppresses -- but a timeout is what
-                # turns the next one anybody meets into a message instead of
-                # an afternoon.
-                log(f"{system.name}: build exceeded "
-                    f"{getattr(args, 'build_timeout', 3600)}s and was killed. "
-                    "If it was sitting at a prompt, that is a bug in the "
-                    "Dockerfile, not a slow machine.")
-                failures.append(system.name)
-                continue
+        # Every system builds. Tagging an upstream image directly would skip
+        # this directory's Dockerfile, and with it the adapter -- the container
+        # would then run whatever the upstream entrypoint is, which for
+        # omnizart meant printing its own help and exiting 2.
+        context = HERE / "images" / system.name
+        if not (context / "Dockerfile").exists():
+            log(f"{system.name}: no Dockerfile at {context}, skipping")
+            failures.append(system.name)
+            continue
+        logfile = work.logs / f"build-{system.name}.log"
+        try:
+            result = run(["docker", "build", "--progress=plain",
+                          "-t", system.tag, str(context)],
+                         check=False, dry=args.dry_run, capture=True,
+                         timeout=getattr(args, "build_timeout", 3600),
+                         tee=None if args.dry_run else logfile)
+        except subprocess.TimeoutExpired:
+            # A build that waits for input does not fail, it waits. The
+            # classic is tzdata asking for a geographic area, which every
+            # Dockerfile here now suppresses -- but a timeout is what turns
+            # the next one anybody meets into a message instead of an
+            # afternoon.
+            log(f"{system.name}: build exceeded "
+                f"{getattr(args, 'build_timeout', 3600)}s and was killed. "
+                "If it was sitting at a prompt, that is a bug in the "
+                "Dockerfile, not a slow machine.")
+            failures.append(system.name)
+            continue
         if not args.dry_run and result.returncode != 0:
             failures.append(system.name)
             tail = (result.stdout or "").splitlines()[-15:]
