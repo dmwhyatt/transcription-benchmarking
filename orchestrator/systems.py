@@ -19,6 +19,21 @@ Mirroring the audio's relative path matters: M4Singer names every segment
 0000.wav inside its own folder, and a flat output directory would collide 700
 ways. The benchmark pairs on the stem within the same directory first, so a
 mirrored tree pairs exactly and a flat one pairs by luck.
+
+Not every system in docs/vocal-transcription-tools.md appears here, and the
+omissions are deliberate rather than an oversight:
+
+  VOCANO          runs as Omnizart's vocal module, which is here. Scoring
+                  both would score one model twice.
+  basic-pitch-ts  the same Basic Pitch model in TypeScript.
+  NeuralNote      the same Basic Pitch model in a VST3 plugin.
+  tuneflow        a DAW wrapper around mirst500's model, which is here.
+  Audio-to-midi,  noted in the survey and not pursued: 2019-era dependencies
+  Vocal2Midi      and, in the second case, never assessed.
+
+A wrapper measures the model it wraps, so putting one in the sweep buys a
+duplicate row and a slower run. The four that would be duplicates are named
+above so that "it is not in the registry" never has to mean "nobody looked".
 """
 
 from dataclasses import dataclass, field
@@ -224,6 +239,17 @@ SYSTEMS: List[System] = [
            checkpoint=Checkpoint(kind="manual",
                                  manual_hint="Weights: github.com/openvpi/SOME/releases"),
            notes="Superseded by GAME; run it only to measure the difference."),
+    System(name="ctc-ce", title="CTC_CE_for_AST (Wang and Jang, TASLP 2022)",
+           licence="none stated", gpu=True, status=PLANNED,
+           checkpoint=Checkpoint(kind="manual",
+                                 manual_hint="Checkpoints and configs are on Google Drive; "
+                                             "see the repository README."),
+           notes="york135's follow-up to the MIR-ST500 baseline, adding a CTC "
+                 "loss to cross-entropy. Same do_everything.py interface as "
+                 "mirst500, so that image is most of this one. Worth running "
+                 "for its own sake and for its labels: it ships MIR-ST500 "
+                 "annotations shifted by +30 ms, which is independent "
+                 "evidence about that corpus rather than about the model."),
     System(name="keums", title="Kum et al. teacher-student (ICASSP 2022)",
            licence="none stated", gpu=True, status=PLANNED,
            checkpoint=Checkpoint(kind="in-image"),
