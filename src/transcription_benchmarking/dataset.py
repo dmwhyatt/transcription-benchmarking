@@ -349,15 +349,48 @@ def pair_estimates(items: Sequence[Item], estimates_dir: Path) -> Dict[str, Path
     singers is not beating one reporting 0.41 on phone recordings of untrained
     ones, and on some datasets 0.77 is above what two annotators manage.
     """
+    estimates_dir = Path(estimates_dir)
     files = find_files(estimates_dir, ANNOTATION_SUFFIXES)
+
+    # Item ids are already unique across the corpus -- widened with parent
+    # directories until they are -- so a system that mirrors the audio's
+    # layout can be paired on the id and nothing else. Everything below is
+    # for systems that flatten their output.
+    by_id: Dict[str, Path] = {}
+    if estimates_dir.is_dir():
+        for path in files:
+            try:
+                relative = path.relative_to(estimates_dir).with_suffix("")
+            except ValueError:  # pragma: no cover - find_files stays under root
+                continue
+            by_id.setdefault(str(relative), path)
+
+    stem_counts: Dict[str, int] = {}
+    for path in files:
+        stem_counts[path.stem] = stem_counts.get(path.stem, 0) + 1
+
     found: Dict[str, Path] = {}
     for item in items:
         stem = item.audio.stem
-        exact = [p for p in files if p.stem == stem]
-        chosen = exact[0] if exact else None
+        chosen = by_id.get(item.item_id)
         if chosen is None:
-            candidates = _prefix_candidates(stem, files)
-            chosen = _choose_note_annotation(candidates, stem)
+            # Then the same directory, which is what tells two songs' 0000.mid
+            # apart when a system writes a tree but names it differently.
+            here = [p for p in files
+                    if p.stem == stem and p.parent.name == item.audio.parent.name]
+            if len(here) == 1:
+                chosen = here[0]
+            elif stem_counts.get(stem, 0) > 1:
+                # Several transcriptions share this stem and none is
+                # identifiable. Taking the first hands every song the first
+                # song's notes: a full run, no error, and a meaningless score.
+                # Refusing shows up as "had no transcription", which is a
+                # question someone will ask.
+                continue
+            else:
+                exact = [p for p in files if p.stem == stem]
+                chosen = (exact[0] if exact else
+                          _choose_note_annotation(_prefix_candidates(stem, files), stem))
         if chosen is not None:
             found[item.item_id] = chosen
     return found
