@@ -753,6 +753,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                              "--only basic-pitch,essentia. Comma-separated "
                              "rather than space-separated so it can precede "
                              "the subcommand without swallowing it.")
+    parser.add_argument("--as", dest="label", default=None, metavar="LABEL",
+                        help="file this run under LABEL rather than the system "
+                             "name, so an earlier run's image, output and score "
+                             "all survive. Requires a single --only. Accepted "
+                             "before or after the subcommand.")
     parser.add_argument("--dry-run", action="store_true",
                         help="print every command instead of running it")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -763,10 +768,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     build.add_argument("--include-planned", action="store_true")
     build.add_argument("--prune", action="store_true",
                        help="docker builder prune between images, for a tight disk")
-    build.add_argument("--as", dest="label", default=None, metavar="LABEL",
-                       help="tag the image bench/LABEL instead of bench/<system>, "
-                            "so a new version can be built without replacing "
-                            "the image the previous run used")
+    build.add_argument("--as", dest="label", default=argparse.SUPPRESS,
+                       metavar="LABEL", help="see --as above; accepted here too")
     build.add_argument("--build-timeout", type=int, default=3600,
                        help="seconds before a build is assumed stuck (default 3600)")
 
@@ -783,10 +786,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                        help="delete a system's previous output first")
     trans.add_argument("--allow-network", action="store_true",
                        help="containers run with --network none by default")
-    trans.add_argument("--as", dest="label", default=None, metavar="LABEL",
-                       help="file this run under LABEL rather than the system "
-                            "name, keeping an earlier run's output and score "
-                            "intact. Requires a single --only.")
+    trans.add_argument("--as", dest="label", default=argparse.SUPPRESS,
+                       metavar="LABEL", help="see --as above; accepted here too")
     trans.add_argument("--shm-size", default="2g",
                        help="/dev/shm per container (default 2g); docker's own "
                             "64m default is too small for DataLoader workers")
@@ -814,7 +815,6 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     every.add_argument("--fresh", action="store_true")
     every.add_argument("--allow-network", action="store_true")
     every.add_argument("--shm-size", default="2g")
-    every.set_defaults(label=None)
     every.set_defaults(markdown=False)
     every.add_argument("--include-planned", action="store_true")
     every.set_defaults(passthrough=[])
