@@ -1,0 +1,29 @@
+# ROSVOT: Li et al., ACL 2024. MIT. Pinned to 3c8332b.
+#
+# Install follows the repository's own scripts/install.sh rather than a
+# requirements.txt, because its authors say sharing one is prone to dependency
+# issues. Inference needs far less than training, so only the inference set is
+# installed here.
+#
+# Weights are a Google Drive zip that Drive rate-limits, so this image expects
+# them mounted at /ckpt: rosvot/model.pt, rwbd/model.pt, rmvpe/.
+# `bench.py fetch` prints the instructions.
+# Contract, identical for every image in this directory:
+#   /audio  read-only corpus, nested directories preserved
+#   /ckpt   read-only checkpoints
+#   /cache  writable scratch (also $HOME)
+#   /out    writable; must contain midi/<same relative path>.mid and adapter.json
+FROM pytorch/pytorch:2.1.1-cuda11.8-cudnn8-runtime
+
+RUN apt-get update && apt-get install -y --no-install-recommends git ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN git clone https://github.com/RickyL-2000/ROSVOT /app \
+    && cd /app && git checkout 3c8332bf43adae35f6e4d64971862f2f6139b310
+
+RUN pip install --no-cache-dir librosa tqdm "matplotlib==3.5" pyyaml \
+        pretty_midi "pyworld==0.2.12" "numpy<2" scipy einops
+
+COPY adapter.py /adapter.py
+ENV PYTHONPATH=/app
+ENTRYPOINT ["python3", "/adapter.py"]

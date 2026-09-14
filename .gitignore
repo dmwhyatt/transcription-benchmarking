@@ -12,3 +12,6 @@ dist/
 .cache/
 results/
 *.result.json
+
+# Orchestrator sweeps: images' output, checkpoints, logs.
+bench-work/
