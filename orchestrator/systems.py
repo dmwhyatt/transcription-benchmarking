@@ -97,8 +97,9 @@ SYSTEMS: List[System] = [
         notes="The floor. Verified outside Docker, where it merged a legato "
               "run into one note and returned 3 of 8. If a system cannot beat "
               "this, something is wrong with the system. Ships no wheels for "
-              "any platform, so it compiles from source in a builder stage, "
-              "on Python 3.9 because 0.4.9 predates 3.11.",
+              "any platform, so it compiles from source in a builder stage. "
+              "Reads the audio formats its own reader handles, which covers "
+              "WAV; see the Dockerfile before widening that.",
     ),
     System(
         name="crepe-notes",
