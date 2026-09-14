@@ -55,16 +55,25 @@ def log(message: str) -> None:
 
 
 def run(argv: Sequence[str], *, capture: bool = False, check: bool = True,
-        timeout: Optional[int] = None, dry: bool = False):
+        timeout: Optional[int] = None, dry: bool = False,
+        tee: Optional[Path] = None):
     """Run a command, showing it first. The showing is the point."""
     printable = " ".join(str(a) for a in argv)
     if dry:
         print(f"    would run: {printable}")
         return subprocess.CompletedProcess(argv, 0, "", "")
     log(f"$ {printable}")
-    return subprocess.run(
-        [str(a) for a in argv], check=check, timeout=timeout,
-        capture_output=capture, text=True)
+    # stdout and stderr are merged rather than captured separately: a build
+    # log is one stream, and a failure whose cause is in stderr while the
+    # step numbers are in stdout is unreadable split in two.
+    result = subprocess.run(
+        [str(a) for a in argv], check=check, timeout=timeout, text=True,
+        stdout=subprocess.PIPE if capture else None,
+        stderr=subprocess.STDOUT if capture else None)
+    if tee is not None and result.stdout:
+        tee.parent.mkdir(parents=True, exist_ok=True)
+        tee.write_text(result.stdout)
+    return result
 
 
 def audio_items(audio_dir: Path) -> List[Path]:
@@ -246,6 +255,11 @@ def cmd_doctor(args) -> int:
 
 
 def cmd_build(args) -> int:
+    """Build each image, keeping the output, because "build failed: aubio" is
+    not a diagnosis. The log is written per system and its tail printed on
+    failure, so the next thing to look at is on screen already.
+    """
+    work = Work(Path(args.work))
     failures = []
     for system in selected(args):
         if system.pull:
@@ -259,11 +273,13 @@ def cmd_build(args) -> int:
                 log(f"{system.name}: no Dockerfile at {context}, skipping")
                 failures.append(system.name)
                 continue
+            logfile = work.logs / f"build-{system.name}.log"
             try:
                 result = run(["docker", "build", "--progress=plain",
                               "-t", system.tag, str(context)],
-                             check=False, dry=args.dry_run,
-                             timeout=getattr(args, "build_timeout", 3600))
+                             check=False, dry=args.dry_run, capture=True,
+                             timeout=getattr(args, "build_timeout", 3600),
+                             tee=None if args.dry_run else logfile)
             except subprocess.TimeoutExpired:
                 # A build that waits for input does not fail, it waits. The
                 # classic is tzdata asking for a geographic area, which every
@@ -278,10 +294,17 @@ def cmd_build(args) -> int:
                 continue
         if not args.dry_run and result.returncode != 0:
             failures.append(system.name)
-        if getattr(args, "prune", False) and not args.dry_run:
+            tail = (result.stdout or "").splitlines()[-15:]
+            if tail:
+                log(f"{system.name}: last {len(tail)} lines "
+                    f"(full log: {work.logs / f'build-{system.name}.log'})")
+                for line in tail:
+                    print(f"    {line}")
+        if getattr(args, "prune", False):
             # BuildKit's cache can transiently double a build's footprint,
             # which is what runs a nearly-full disk out mid-layer.
-            run(["docker", "builder", "prune", "-f"], check=False)
+            run(["docker", "builder", "prune", "-f"], check=False,
+                dry=args.dry_run)
     if failures:
         log(f"build failed: {', '.join(failures)}")
     return 1 if failures else 0

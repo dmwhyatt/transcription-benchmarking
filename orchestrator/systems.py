@@ -96,7 +96,9 @@ SYSTEMS: List[System] = [
         checkpoint=Checkpoint(kind="in-image"),
         notes="The floor. Verified outside Docker, where it merged a legato "
               "run into one note and returned 3 of 8. If a system cannot beat "
-              "this, something is wrong with the system.",
+              "this, something is wrong with the system. Ships no wheels for "
+              "any platform, so it compiles from source in a builder stage, "
+              "on Python 3.9 because 0.4.9 predates 3.11.",
     ),
     System(
         name="crepe-notes",
