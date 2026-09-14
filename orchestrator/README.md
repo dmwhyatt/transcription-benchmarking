@@ -112,6 +112,15 @@ and is recorded as one in the survey.
 
 ## Reading the result
 
+`table` is the one you want first: every scored system side by side, sorted by
+COnP, with the bootstrap interval beside each mean so a column of numbers
+cannot be misread as a ranking. `--markdown` emits it for pasting into `docs/`.
+
+```shell
+./bench.py table
+./bench.py table --markdown
+```
+
 `compare` runs every pair through `--compare`, which bootstraps the *paired*
 difference. Do not read a league table of separate confidence intervals
 instead: the difficulty of a recording is shared between two systems, and

@@ -527,8 +527,93 @@ def cmd_compare(args) -> int:
     return 0
 
 
+def cmd_table(args) -> int:
+    """One table across every scored system, which is the point of the sweep.
+
+    `compare` bootstraps the paired difference between two systems and is the
+    honest way to say one beat another. This is the other thing you want: all
+    of them side by side, with the intervals visible so that a table of means
+    cannot be read as a ranking.
+    """
+    work = Work(Path(args.work))
+    rows = []
+    for path in sorted(work.results.glob("*.json")):
+        if path.name in ("transcribe-summary.json", "table.json"):
+            continue
+        try:
+            data = json.loads(path.read_text())
+            aggregate = data["aggregate"]
+        except (ValueError, KeyError):
+            log(f"skipping {path.name}: not a benchmark result")
+            continue
+        macro = aggregate["macro"]
+        rows.append({
+            "system": path.stem,
+            "items": aggregate["n_items"],
+            "reference_notes": aggregate["n_reference_notes"],
+            "estimated_notes": aggregate["n_estimated_notes"],
+            "con": macro["con_f"], "conp": macro["conp_f"],
+            "conpoff": macro["conpoff_f"],
+            "octave_error_rate": aggregate.get("octave_error_rate", 0.0),
+            "median_best_offset_s": aggregate.get("median_best_offset_s", 0.0),
+        })
+    if not rows:
+        log(f"no scored results in {work.results}; run `score` first")
+        return 1
+
+    # By COnP, which is the headline metric: onset and pitch, not offset.
+    rows.sort(key=lambda r: r["conp"]["mean"], reverse=True)
+
+    timings = {}
+    summary = work.results / "transcribe-summary.json"
+    if summary.exists():
+        for entry in json.loads(summary.read_text()):
+            timings[entry.get("system")] = entry.get("seconds")
+
+    def cell(interval):
+        return (f"{interval['mean']:.3f} "
+                f"[{interval['low']:.3f}-{interval['high']:.3f}]")
+
+    if args.markdown:
+        print("| system | items | COn F | COnP F | COnPOff F | octave err | "
+              "median offset | transcribe |")
+        print("|---|---:|---|---|---|---:|---:|---:|")
+        for r in rows:
+            seconds = timings.get(r["system"])
+            print(f"| {r['system']} | {r['items']} | {cell(r['con'])} | "
+                  f"{cell(r['conp'])} | {cell(r['conpoff'])} | "
+                  f"{r['octave_error_rate'] * 100:.1f}% | "
+                  f"{r['median_best_offset_s']:+.3f}s | "
+                  f"{(str(int(seconds)) + 's') if seconds else '--'} |")
+    else:
+        print(f"\n{'system':<18}{'COn F':>22}{'COnP F':>22}{'COnPOff F':>22}"
+              f"{'oct':>7}{'offset':>9}")
+        print("-" * 100)
+        for r in rows:
+            print(f"{r['system']:<18}{cell(r['con']):>22}{cell(r['conp']):>22}"
+                  f"{cell(r['conpoff']):>22}"
+                  f"{r['octave_error_rate'] * 100:>6.1f}%"
+                  f"{r['median_best_offset_s']:>+9.3f}")
+        print("-" * 100)
+        print(f"{rows[0]['items']} recordings, "
+              f"{rows[0]['reference_notes']} reference notes. "
+              f"Macro mean over recordings, 95% bootstrap interval.")
+        print("\nSorted by COnP, and the order is not a ranking: intervals "
+              "this wide\noverlap freely. Use `compare` for any claim that one "
+              "system beats another --\nit bootstraps the paired difference, "
+              "which is the question being asked.")
+        print("\nRead against the ceiling. Two annotators agree at COnP 0.740 "
+              "on vocadito,\nso a system there is at the limit of what those "
+              "references can show, and one\nfar above it has a scoring fault "
+              "rather than a remarkable model.")
+
+    (work.results / "table.json").write_text(json.dumps(rows, indent=2))
+    return 0
+
+
 def cmd_all(args) -> int:
-    for step in (cmd_build, cmd_fetch, cmd_transcribe, cmd_score, cmd_compare):
+    for step in (cmd_build, cmd_fetch, cmd_transcribe, cmd_score,
+                 cmd_table, cmd_compare):
         code = step(args)
         if code != 0 and step in (cmd_build, cmd_fetch):
             log(f"stopping: {step.__name__} did not complete")
@@ -606,6 +691,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     score.add_argument("passthrough", nargs="*", default=[],
                        help="extra flags passed to transcription-benchmark")
 
+    table = sub.add_parser("table", help="one table across every scored system")
+    table.add_argument("--markdown", action="store_true",
+                       help="emit a markdown table, for pasting into docs/")
+
     sub.add_parser("compare", help="paired comparison of every pair")
 
     every = sub.add_parser("all", help="build, fetch, transcribe, score, compare")
@@ -618,6 +707,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     every.add_argument("--fresh", action="store_true")
     every.add_argument("--allow-network", action="store_true")
     every.add_argument("--shm-size", default="2g")
+    every.set_defaults(markdown=False)
     every.add_argument("--include-planned", action="store_true")
     every.set_defaults(passthrough=[])
 
@@ -625,7 +715,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     return {
         "doctor": cmd_doctor, "build": cmd_build, "fetch": cmd_fetch,
         "transcribe": cmd_transcribe, "score": cmd_score,
-        "compare": cmd_compare, "all": cmd_all,
+        "compare": cmd_compare, "table": cmd_table, "all": cmd_all,
     }[args.command](args)
 
 
