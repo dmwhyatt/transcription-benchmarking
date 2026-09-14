@@ -13,7 +13,9 @@
 #   /ckpt   read-only checkpoints
 #   /cache  writable scratch (also $HOME)
 #   /out    writable; must contain midi/<same relative path>.mid and adapter.json
-FROM pytorch/pytorch:2.1.1-cuda11.8-cudnn8-runtime
+# ROSVOT asks for torch 2.1.1, which pytorch/pytorch never published; 2.1.2 is
+# the neighbouring tag, confirmed present in the registry.
+FROM pytorch/pytorch:2.1.2-cuda11.8-cudnn8-runtime
 
 RUN apt-get update && apt-get install -y --no-install-recommends git ffmpeg \
     && rm -rf /var/lib/apt/lists/*

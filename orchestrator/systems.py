@@ -55,6 +55,10 @@ class System:
     # system which needs the network, or more shared memory, has to say so.
     docker_args: List[str] = field(default_factory=list)
     needs_network: bool = False
+    # Rough built size in GB. Estimates, not measurements -- nothing here has
+    # been built -- and only good enough to order the builds and warn before
+    # the disk runs out mid-layer.
+    approx_gb: float = 2.0
 
     @property
     def tag(self) -> str:
@@ -65,6 +69,7 @@ SYSTEMS: List[System] = [
     # ---------------------------------------------------------------- ready
     System(
         name="basic-pitch",
+        approx_gb=1.5,
         title="Basic Pitch (Spotify, ICASSP 2022)",
         licence="Apache-2.0",
         checkpoint=Checkpoint(kind="in-image"),
@@ -76,6 +81,7 @@ SYSTEMS: List[System] = [
     ),
     System(
         name="essentia",
+        approx_gb=0.6,
         title="Essentia PredominantPitchMelodia + PitchContourSegmentation",
         licence="AGPL-3.0",
         checkpoint=Checkpoint(kind="in-image"),
@@ -84,6 +90,7 @@ SYSTEMS: List[System] = [
     ),
     System(
         name="aubio",
+        approx_gb=0.4,
         title="aubio notes",
         licence="GPL-3.0",
         checkpoint=Checkpoint(kind="in-image"),
@@ -93,6 +100,7 @@ SYSTEMS: List[System] = [
     ),
     System(
         name="crepe-notes",
+        approx_gb=2.5,
         title="CREPE Notes (Riley and Dixon, SMC 2023)",
         licence="GPL-3.0 + madmom non-commercial",
         checkpoint=Checkpoint(kind="in-image"),
@@ -104,6 +112,7 @@ SYSTEMS: List[System] = [
     ),
     System(
         name="omnizart",
+        approx_gb=4.0,
         title="Omnizart vocal (VOCANO, MCT Lab)",
         licence="MIT",
         pull="mctlab/omnizart:latest",
@@ -113,6 +122,7 @@ SYSTEMS: List[System] = [
     ),
     System(
         name="mirst500",
+        approx_gb=7.0,
         title="MIR-ST500 baseline (Wang and Jang, ICASSP 2021)",
         licence="none stated",
         gpu=True,
@@ -124,6 +134,7 @@ SYSTEMS: List[System] = [
     ),
     System(
         name="rosvot",
+        approx_gb=8.0,
         title="ROSVOT (Li et al., ACL 2024)",
         licence="MIT",
         gpu=True,
@@ -147,6 +158,7 @@ SYSTEMS: List[System] = [
     ),
     System(
         name="game",
+        approx_gb=11.0,
         title="GAME: Generative Adaptive MIDI Extractor (OpenVPI)",
         licence="MIT",
         gpu=True,
@@ -164,6 +176,11 @@ SYSTEMS: List[System] = [
     ),
     System(
         name="phoneme-informed",
+        # Standalone cost. It shares mirst500's pytorch 1.13.1-cuda11.6 base,
+        # so building the two back to back costs about this once rather than
+        # twice -- but the estimate errs high, because guessing low is what
+        # runs a tight disk out halfway through a layer.
+        approx_gb=7.0,
         title="Phoneme-informed note-level singing transcription (ICASSP 2023)",
         licence="MIT",
         gpu=True,
@@ -175,7 +192,8 @@ SYSTEMS: List[System] = [
         ),
         notes="Takes a --bpm and may quantise against it; the adapter passes "
               "BPM=120 by default. Check whether its offsets land on a grid "
-              "before reading anything into COnPOff.",
+              "before reading anything into COnPOff. Shares mirst500's base "
+              "image, so build the two in the same wave on a tight disk.",
     ),
 
     # -------------------------------------------------------------- planned

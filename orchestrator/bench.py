@@ -173,7 +173,7 @@ def cmd_doctor(args) -> int:
              "--format=csv,noheader"], capture_output=True, text=True)
         for line in probe.stdout.strip().splitlines():
             print(f"         {line}")
-        print("         CUDA images here pin 11.8 to 12.9; the host driver must")
+        print("         CUDA images here pin 11.6 to 12.9; the host driver must")
         print("         be new enough for the highest of those you build.")
     if daemon:
         gpu_probe = subprocess.run(
@@ -190,8 +190,29 @@ def cmd_doctor(args) -> int:
     print("\ndisk")
     usage = shutil.disk_usage(args.work if Path(args.work).exists() else ".")
     free_gb = usage.free / 2**30
-    check(f"free space {free_gb:.0f} GB", free_gb > 60,
-          "the nine ready images are roughly 40-60 GB together")
+    ready = registry.runnable()
+    needed = sum(s.approx_gb for s in ready)
+    # Layer sharing is real but unmeasurable from here, and BuildKit's cache
+    # can transiently double a build, so the headroom asked for is the build
+    # cache rather than the images.
+    check(f"free space {free_gb:.0f} GB for ~{needed:.0f} GB of images",
+          free_gb > needed * 1.3,
+          "" if free_gb > needed * 1.3 else
+          "tight: build in waves and run `docker builder prune -f` between them")
+    if free_gb <= needed * 1.3:
+        print("\n         suggested waves, cheapest first (prune between):")
+        wave, running = [], 0.0
+        for system in sorted(ready, key=lambda s: s.approx_gb):
+            if running + system.approx_gb > free_gb * 0.45 and wave:
+                print(f"           ./bench.py --only {','.join(wave)} build"
+                      f"   (~{running:.0f} GB)")
+                wave, running = [], 0.0
+            wave.append(system.name)
+            running += system.approx_gb
+        if wave:
+            print(f"           ./bench.py --only {','.join(wave)} build"
+                  f"   (~{running:.0f} GB)")
+        print("           docker builder prune -f   # between each")
 
     print("\nbase images")
     print("         (these tags were pinned in an environment with no docker;")
@@ -242,6 +263,10 @@ def cmd_build(args) -> int:
                          check=False, dry=args.dry_run)
         if not args.dry_run and result.returncode != 0:
             failures.append(system.name)
+        if getattr(args, "prune", False) and not args.dry_run:
+            # BuildKit's cache can transiently double a build's footprint,
+            # which is what runs a nearly-full disk out mid-layer.
+            run(["docker", "builder", "prune", "-f"], check=False)
     if failures:
         log(f"build failed: {', '.join(failures)}")
     return 1 if failures else 0
@@ -477,6 +502,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     build = sub.add_parser("build", help="build or pull the images")
     build.add_argument("--include-planned", action="store_true")
+    build.add_argument("--prune", action="store_true",
+                       help="docker builder prune between images, for a tight disk")
 
     sub.add_parser("fetch", help="download checkpoints")
 
