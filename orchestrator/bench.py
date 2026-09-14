@@ -111,7 +111,11 @@ class Work:
     """Where everything lands. One directory, so a sweep is one thing to keep."""
 
     def __init__(self, root: Path) -> None:
-        self.root = root
+        # Absolute, always. Every bind mount below is built from this, and
+        # docker rejects a relative source with exit 125 before the container
+        # is ever created -- which reads as nine broken images rather than one
+        # missing call to resolve().
+        self.root = Path(root).resolve()
         for sub in ("ckpt", "out", "cache", "results", "logs", "staging"):
             (root / sub).mkdir(parents=True, exist_ok=True)
 
@@ -394,6 +398,13 @@ def transcribe_one(system, audio_dir: Path, expected: int, work: Work, args) -> 
         argv += ["--network", "none"]
     argv += system.docker_args + [system.tag]
 
+    for flag, value in zip(argv, argv[1:]):
+        if flag == "-v":
+            source = value.split(":", 1)[0]
+            assert Path(source).is_absolute(), (
+                f"bind mount source {source!r} is not absolute; docker will "
+                "refuse it with exit 125")
+
     started = time.time()
     logfile = work.logs / f"{system.name}.log"
     if args.dry_run:
@@ -414,6 +425,13 @@ def transcribe_one(system, audio_dir: Path, expected: int, work: Work, args) -> 
         # A short run is worse than a failed one: the items a system skips are
         # its hardest, and dropping them flatters it.
         status = f"short: {len(written)}/{expected}"
+
+    if proc.returncode != 0:
+        tail = logfile.read_text().splitlines()[-12:] if logfile.exists() else []
+        if tail:
+            log(f"{system.name}: last {len(tail)} lines of {logfile}")
+            for line in tail:
+                print(f"    {line}")
 
     record = {
         "system": system.name,
