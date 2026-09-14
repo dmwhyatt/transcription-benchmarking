@@ -84,7 +84,7 @@ They also run as the invoking user, so the output is not left owned by root.
 | `omnizart` | no | `download-checkpoints` | Uses the upstream image; pip install fails on portaudio. |
 | `mirst500` | yes | **in image** | Weights are committed upstream. Trained on MIR-ST500 1-400. |
 | `rosvot` | yes | manual (Drive) | `--apply_rwbd` and `--verbose` are both load-bearing. |
-| `game` | yes | manual (releases) | Batches the whole corpus through one model load. |
+| `game` | no | automatic | Runs the published ONNX models; upstream ships no ONNX pipeline, so the adapter is one. ~1 GB, not ~11. |
 | `phoneme-informed` | yes | release asset | Takes a `--bpm`; check whether it quantises. |
 
 `stars` and `musicyolo` are registered as **blocked**, with the reason in

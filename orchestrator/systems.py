@@ -162,24 +162,23 @@ SYSTEMS: List[System] = [
     ),
     System(
         name="game",
-        approx_gb=11.0,
+        approx_gb=1.0,
         title="GAME: Generative Adaptive MIDI Extractor (OpenVPI)",
         licence="MIT",
-        gpu=True,
+        gpu=False,
         checkpoint=Checkpoint(
-            kind="manual",
-            manual_hint=(
-                "GAME publishes weights on GitHub releases and discussions.\n"
-                "  1. see https://github.com/openvpi/GAME/releases\n"
-                "  2. take a PyTorch checkpoint (.pt or .ckpt), NOT the -onnx\n"
-                "     bundle: GAME's README says it ships no ONNX inference\n"
-                "     pipeline, so those files cannot be run by infer.py\n"
-                "  3. drop it anywhere under the directory below"),
+            kind="url",
+            ref="https://github.com/openvpi/GAME/releases/download/v1.0.3/"
+                "GAME-1.0.3-large-onnx.zip",
+            unpack=True,
         ),
-        notes="Batch-transcribes a directory in one process, which makes it "
-              "the cheapest of the singing-specific systems to run. Copies "
-              "the audio into a writable tree first, because it writes its "
-              "MIDI beside each input and /audio is mounted read-only.",
+        notes="Run from the ONNX models its releases publish, not from its "
+              "own infer.py: there is no PyTorch checkpoint to download, and "
+              "upstream ships no ONNX inference pipeline, so the adapter is "
+              "that pipeline. Verified on a synthetic phrase -- all eight "
+              "notes, pitch within 0.04 semitones. Being onnxruntime rather "
+              "than torch on CUDA, it is also the smallest GPU-class system "
+              "here by an order of magnitude.",
     ),
     System(
         name="phoneme-informed",

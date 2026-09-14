@@ -329,11 +329,17 @@ def cmd_fetch(args) -> int:
             continue
         if spec.kind == "url":
             target = dest / Path(spec.ref).name
-            if target.exists():
-                log(f"{system.name}: {target.name} already here")
+            if target.exists() or (spec.unpack and any(dest.iterdir())):
+                log(f"{system.name}: already here")
                 continue
-            run(["curl", "-fL", "--retry", "3", "-o", str(target), spec.ref],
-                check=False, dry=args.dry_run)
+            result = run(["curl", "-fL", "--retry", "3", "-o", str(target),
+                          spec.ref], check=False, dry=args.dry_run)
+            if spec.unpack and not args.dry_run and result.returncode == 0:
+                import zipfile
+                log(f"{system.name}: unpacking {target.name}")
+                with zipfile.ZipFile(target) as archive:
+                    archive.extractall(dest)
+                target.unlink()
         elif spec.kind == "hf":
             run([sys.executable, "-c",
                  "import sys;from huggingface_hub import snapshot_download;"
