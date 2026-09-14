@@ -33,6 +33,41 @@ CACHE = Path(os.environ.get("BENCH_CACHE", "/cache"))
 SUFFIXES = {".wav", ".flac", ".mp3", ".m4a", ".ogg", ".aif", ".aiff"}
 
 
+def rewrite_config(config: Path, ckpt_root: Path, workdir: Path) -> Path:
+    """A copy of ROSVOT's config with its relative checkpoint paths resolved.
+
+    Any value that looks like "checkpoints/<something>" is looked up under the
+    mounted checkpoint tree and replaced with where it actually is. Sibling
+    YAML files are copied too, because a config may reference others through
+    base_config, and those are resolved relative to the config's own directory.
+    """
+    import shutil
+    import yaml
+
+    workdir.mkdir(parents=True, exist_ok=True)
+    for sibling in config.parent.glob("*.yaml"):
+        shutil.copy2(sibling, workdir / sibling.name)
+    target = workdir / config.name
+
+    loaded = yaml.safe_load(target.read_text()) or {}
+    changed = []
+    for key, value in list(loaded.items()):
+        if not (isinstance(value, str) and value.startswith("checkpoints/")):
+            continue
+        tail = value[len("checkpoints/"):]
+        found = sorted(ckpt_root.rglob(tail))
+        if found:
+            loaded[key] = str(found[0])
+            changed.append(f"{key} -> {found[0]}")
+        else:
+            print(f"WARNING: config wants {value} and nothing under "
+                  f"{ckpt_root} matches {tail}", file=sys.stderr)
+    target.write_text(yaml.safe_dump(loaded, sort_keys=False))
+    for line in changed:
+        print(f"config: {line}", flush=True)
+    return target
+
+
 def find_model(root: Path, name: str):
     """The <name>/model.pt under root, however deeply the archive nested it."""
     hits = sorted(root.rglob(f"{name}/model.pt"))
@@ -90,20 +125,13 @@ def main():
             "--metadata", str(meta_path), "-o", str(produced_dir),
             "--ckpt", str(rosvot_ckpt), "--verbose"]
 
-    # ROSVOT loads its pitch extractor from hparams['pe_ckpt'], whose default
-    # in the shipped config is the relative path checkpoints/rmvpe/model.pt.
-    # Relative to /app, where nothing is mounted. It is not a flag, but the
-    # hparams system takes key=value overrides, so point it at the real file.
-    overrides = []
-    rmvpe = find_model(CKPT, "rmvpe")
-    if rmvpe is not None:
-        overrides.append(f"pe_ckpt={rmvpe}")
-    else:
-        print("WARNING: no rmvpe/model.pt under /ckpt. ROSVOT extracts pitch "
-              "with RMVPE and will fail looking for a relative path.",
-              file=sys.stderr)
-    if overrides:
-        argv += ["--hparams", ",".join(overrides)]
+    # The config carries relative checkpoint paths -- pe_ckpt defaults to
+    # checkpoints/rmvpe/model.pt -- which resolve against /app, the image,
+    # where nothing is mounted. rosvot.py takes no hparams overrides (that
+    # parser belongs to set_hparams, which it calls directly), but it does
+    # take --config, so the fix is a config with the paths made absolute.
+    patched = rewrite_config(config, CKPT, CACHE / "rosvot-config")
+    argv += ["--config", str(patched)]
 
     wbd = find_model(CKPT, "rwbd")
     if wbd is not None:
