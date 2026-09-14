@@ -5,24 +5,33 @@
 # becomes one long note. Kept in the sweep because a system that cannot beat
 # this has a problem that no amount of interval arithmetic will fix.
 #
-# aubio ships NO linux wheel, in any release, so it always compiles and a slim
-# image without a toolchain cannot install it. That is the whole fix. The
-# toolchain lives in a builder stage and only the built wheel is carried
-# forward, because this sweep runs on a disk with no room to spare.
+# Three things this image has to get right, each learned from a failed build.
 #
-# Two things were added on top of that and both broke the build, so neither is
-# here now:
+# 1. aubio ships NO linux wheel, in any release, so it always compiles and a
+#    slim image without a toolchain cannot install it. The toolchain lives in
+#    a builder stage and only the finished wheel is carried forward, because
+#    this sweep runs on a disk with no room to spare.
 #
-#   * python:3.9-slim, on a guess that 0.4.9 (2019) would not build against
-#     3.11's C API. It builds against 3.11 fine -- confirmed twice, with pip
-#     24.0 and with current pip.
-#   * libsndfile1-dev, to widen the audio formats it can read. aubio's waf
-#     build changes what it links when those headers are present, and the
-#     verified-good build has no sndfile headers available at all.
+# 2. CFLAGS. aubio 0.4.9 declares its ufunc callbacks as
+#        void (*)(char **, npy_intp *, npy_intp *, void *)
+#    which numpy changed to const npy_intp * in 1.25. GCC 13 calls that
+#    mismatch a warning; GCC 14 -- which this base image now carries -- makes
+#    it an error, and the build dies in ufuncs.c. Pinning numpy does not help:
+#    every numpy from 1.25 onward has the const signature. The mismatch is
+#    only a const qualifier on a pointer argument, so it is ABI-identical and
+#    demoting it back to a warning is safe. Confirmed by building with the
+#    diagnostic forced fatal and this flag demoting it, then running the
+#    result.
 #
-# So the formats aubio reads here are the ones its own reader handles, which
-# covers the WAV that vocadito and M4Singer ship. If a corpus of MP3 or FLAC
-# needs transcribing, that is the knob to turn -- and to re-verify.
+# 3. numpy is NOT pinned here, unlike most images in this directory. The wheel
+#    is built against whatever numpy the build environment resolves, so the
+#    runtime must not then be dragged to a different major version underneath
+#    it. Build and run agree by saying nothing.
+#
+# aubio reads the formats its own reader handles, which covers the WAV that
+# vocadito and M4Singer ship. libsndfile headers would widen that, and would
+# also change what its waf build links -- so that is a knob to turn with a
+# re-verified build, not a line to add hopefully.
 #
 # Contract, identical for every image in this directory:
 #   /audio  read-only corpus, nested directories preserved
@@ -36,16 +45,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip wheel --no-cache-dir --wheel-dir /wheels aubio==0.4.9
+ENV CFLAGS="-Wno-error=incompatible-pointer-types"
+RUN pip wheel --no-cache-dir --wheel-dir /wheels aubio==0.4.9
 
 
 FROM python:3.11-slim
 
 COPY --from=build /wheels /wheels
-RUN pip install --no-cache-dir /wheels/*.whl "numpy<2" pretty_midi \
+RUN pip install --no-cache-dir /wheels/aubio-*.whl pretty_midi \
     && rm -rf /wheels \
-    && python3 -c "import aubio; print('aubio', aubio.version)"
+    && python3 -c "import numpy, aubio; print('aubio', aubio.version, 'on numpy', numpy.__version__)"
 
 COPY adapter.py /adapter.py
 ENTRYPOINT ["python3", "/adapter.py"]
