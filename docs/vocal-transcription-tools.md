@@ -5,57 +5,158 @@ comparison. This is the survey that should have come first: what else exists
 that turns a sung recording into notes, what it costs to run, and which of them
 this benchmark can actually score.
 
-The question a survey like this usually answers -- which system is most
-accurate -- is the one it must not answer. Published figures compare datasets:
-ROSVOT reports COnPOff 77.4 on M4Singer, two humans agree at 64.2 on vocadito,
-and neither number says which model is better. So nothing below is ranked by
-accuracy. Systems are ranked by whether you can get them to write a directory
-of MIDI files, because that is the step between a paper and a measurement.
+Which of them is most accurate is the question, and answering it is the whole
+point of the exercise: every system run over the same recordings, scored
+against the same references at the same tolerances, read against the same
+inter-annotator ceiling. What cannot be done is answering it from the papers.
+ROSVOT reports COnPOff 77.4 on M4Singer, two annotators agree at 64.2 on
+vocadito, and those two numbers describe datasets rather than systems. Nothing
+below is therefore ranked by accuracy, because on shared audio no accuracy has
+been measured yet -- these are ranked by what it costs to get each one running,
+which is the order to run them in and not a prediction of the result.
+
+vocadito is the venue that makes the comparison fair, and that is a checked
+claim rather than a hope: **no system in this survey trains on vocadito**. The
+evidence is in [Training contamination](#training-contamination) below. What
+contamination there is sits on M4Singer and MIR-ST500, which matters when
+scoring on those corpora and not when scoring on vocadito.
 
 Surveyed 11 September 2026.
 
-## How this was compiled, and what that is worth
+## Method
 
-Three channels, in decreasing order of trust.
+### Question
 
-**The repositories themselves.** Every licence, language, output format and
-last-commit date below was read from the repository on 11 September 2026 --
-anonymous `git` reads and `raw.githubusercontent.com`, not from a paper's claim
-about its own code. Last-commit dates are the default branch's head.
+Which publicly available systems convert singing audio into note events, and
+what does it cost to get each one to write a directory of transcriptions this
+benchmark can read?
 
-**A clean-venv install test.** Where a system is on PyPI, it was installed into
-a fresh Python 3.11 venv and, if it installed, run on a synthetic sung phrase:
-eight notes, 5.6 s, 5.2 Hz vibrato, a 40 ms attack and a legato slur, generated
-with known onsets and pitches. This is a smoke test and nothing more. It says
-whether a system installs and emits notes at all; it says nothing about
-accuracy, because eight synthetic notes are not a corpus and a system that
-nails them can still fail on a phone recording of an untrained singer. It is
-reported because "available" is otherwise a README's word for itself, and two
-of the five packages tested do not install as documented.
+### Sources
 
-**Search, for the literature.** `arxiv.org` is blocked by this environment's
-egress policy, so no paper below was read in full from here -- including the
-CREPE Notes paper that prompted the survey. Claims about a paper's contents are
-attributed to the repository's own README or to a search result, and marked
-where that matters. Anything resting on a PDF I could not open is flagged
-rather than asserted.
+**1. Seed set.** Systems already named in this repository or in the request
+that commissioned the survey: ROSVOT, Basic Pitch, VOCANO, CREPE Notes.
 
-What none of this establishes: no system below has been scored on real audio
-here. There is no corpus in this container.
+**2. Web search.** Seventeen queries, logged below, run 11 September 2026.
+`arxiv.org` is blocked by this environment's egress policy, so searches
+returned titles, abstracts and result snippets rather than full text.
 
-## The shortlist
+**3. Citation and link chasing.** Two kinds. Result titles naming a system not
+yet on the list were followed up with a targeted query -- this is how the
+phoneme-informed model, keums' teacher-student model, SVT_SpeechBrain,
+VocalParse and three of the four code-less papers arrived. README links from
+included repositories were followed -- VOCANO to Omnizart, SOME to GAME, STARS
+to ROSVOT, CREPE Notes to PESTO/PENN/torchcrepe, Tony to pYIN and
+sonic-annotator.
 
-Ranked by how cheaply each becomes a number in this benchmark, not by how good
-it is.
+**4. Repository inspection.** Every included system's repository was read
+directly over anonymous git and `raw.githubusercontent.com`: README, licence
+file, dependency manifest, and `git log -1` on the default branch for the
+last-commit date.
+
+**5. Installation.** Every included system published to PyPI was installed into
+a clean Python 3.11 venv and, where it installed, run on a synthetic sung
+phrase with known notes.
+
+### Search log
+
+Queries as issued. "New" lists what each first surfaced that earlier queries
+had not.
+
+| # | Query | New |
+|---|-------|-----|
+| S1 | CREPE Notes new method segmenting pitch contours into discrete notes DAFx 2023 Riley Dixon | crepe_notes repo, SMC (not DAFx) venue |
+| S2 | VOCANO note transcription singing voice polyphonic music github ISMIR 2021 Hsu Su | SongTrans, MusicMamba, keums pseudo-label paper |
+| S3 | MIR-ST500 singing transcription baseline github york135 | SVT_SpeechBrain, CTC_CE_for_AST, HumTrans, tuneflow plugin, YourMT3+ |
+| S4 | SOME Singing-Oriented MIDI Extractor openvpi github vocal to midi | GAME, Vocal2Midi, bill317996/Audio-to-midi |
+| S5 | singing voice transcription note-level open source 2025 2026 state of the art github | VocalParse, phoneme-informed paper |
+| S6 | CREPE Notes SMC 2023 evaluation datasets Filosax compared against Basic Pitch Omnizart | FiloSax/FiloBass as its evaluation corpora |
+| S7 | YourMT3 singing voice transcription vocal stem multi-instrument github mimbres | YourMT3 direct-vocal claim, MLSP 2024 |
+| S8 | Omnizart vocal transcription module MCT lab install status maintained | Omnizart module table, Docker image |
+| S9 | phoneme-informed note-level singing transcription ICASSP 2023 github seyong92 | seyong92 repo, WhisperMSS |
+| S10 | MusicYOLO sight-singing onset offset detection object detection github | MusicYOLO repo, SSVD-v2.0 dataset |
+| S11 | STARS unified framework singing transcription alignment refined style annotation github | STARS repo, ACL 2025 Findings |
+| S12 | SongTrans unified song transcription alignment lyrics notes github code release | confirmed no code release |
+| S13 | sheet sage Donahue lead sheet transcription vocal melody github docker | Sheet Sage resource requirements |
+| S14 | WhisperMSS two-stage Mandarin singing transcription Interspeech 2025 code | Cycle FHT Transformer; confirmed no code |
+| S15 | vocadito Bittner 2021 f0 note annotations Tony pYIN manual correction | Tony cited in vocadito's references |
+| S16 | sonic-annotator pyin vamp plugin batch CLI note transcription CSV | the headless batch route for pYIN |
+| S17 | MT3 training datasets Slakh MAESTRO URMP Cerberus GuitarSet MusicNet | MT3's instrumental-only training mix |
+
+### Inclusion criteria
+
+- **I1 -- Note output.** Emits discrete note events (onset, offset, pitch), not
+  only a frame-level f0 contour.
+- **I2 -- Applicable to voice.** Either trained on singing, or
+  instrument-agnostic and usable on a solo vocal stem.
+- **I3 -- Publicly obtainable.** Source or binary available to the public,
+  *or* published with enough prominence that the absence of code is itself
+  worth recording (the "no code found" section).
+- **I4 -- Assessable.** Enough documentation to determine language, licence,
+  inputs and outputs without running it.
+
+### Exclusion criteria
+
+- **E1 -- f0 estimators without segmentation.** CREPE, pYIN, RMVPE, PESTO,
+  PENN, torchcrepe, SPICE, Praat. They fail I1. They appear only as named
+  components of systems that do segment.
+- **E2 -- Closed or commercial.** Melodyne, AnthemScore, Klangio, Dubler, DAW
+  built-in audio-to-MIDI. Excluded by the scoping decision for this survey, not
+  because they are irrelevant -- they are what a musician would actually reach
+  for, and the survey says nothing about them.
+- **E3 -- Inapplicable to voice.** Piano- or drum-specific transcription
+  (Onsets and Frames, piano transcription models). Fails I2.
+- **E4 -- Not a system.** Datasets (SSVD-v2.0, HumTrans, MIR-ST500 itself),
+  and wrappers that add no transcription capability of their own. Recorded
+  where they explain a system, not listed as entries. The TuneFlow plugin is
+  the borderline case: it is listed, flagged as a wrapper around york135's
+  model.
+
+### Screening
+
+Forty-eight candidates were identified. **Twenty-six** met I1-I4 and are
+described below (thirteen singing-specific, ten general, three noted but not
+pursued); **four** are published without obtainable code; **eighteen** were
+excluded under E1-E4 -- eight f0 estimators, five commercial products, one
+piano-only model, and four datasets or training-only repositories.
+
+Screening ran in three passes: title and README, then repository inspection,
+then installation. Nothing was excluded on the strength of its abstract alone,
+and nothing was included on the strength of its README alone -- every included
+repository was read.
+
+### Threats to validity
+
+**English-language search only.** Much of the singing-transcription ecosystem
+is Chinese-language. OpenVPI and MusicYOLO surfaced because they also publish
+to GitHub in English; comparable work on Gitee or documented only in Chinese
+would not have. This is the most likely source of missed systems.
+
+**No full-text screening.** With `arxiv.org` blocked, a system named only in
+the body of a paper -- not in a title, abstract, README or search snippet --
+would not have been found. The CREPE Notes paper that prompted the survey is
+itself in this category: its reference list was not read.
+
+**Search ranking is not reproducible.** The same seventeen queries on a
+different day return a different ordering and may surface different systems.
+The repository facts below are reproducible; the discovery process is not.
+
+**Recency skews coverage.** Systems from 2021-2022 were found mainly by
+citation chasing rather than search, so older work is covered less evenly than
+work from 2024 onward.
+
+## Run order
+
+Ranked by what it costs to turn each one into a number, which is the order to
+run them in. It is not a prediction of how they will place.
 
 | # | System | Why it is next | Cost to run |
 |---|--------|----------------|-------------|
-| 1 | **Basic Pitch** | Installed and ran here, first try. Instrument-agnostic, so it is the generalist floor every singing-specific model should beat. Also the baseline CREPE Notes measures itself against. | `pip install basic-pitch` |
-| 2 | **GAME** (OpenVPI) | The most recent singing-specific system that transcribes a whole directory to MIDI in one command, MIT, explicitly built for separated or noisy vocals. Not trained on any corpus here. | clone + checkpoint from releases |
-| 3 | **MIR-ST500 baseline** (york135) | Pretrained weights committed *in the repository* -- no Drive link, no Baidu. One command per file, MIDI out. The natural representative of the MIR-ST500 line of work. | clone + `do_everything.py` |
+| 1 | **Basic Pitch** | Installed and ran here, first try. Instrument-agnostic, and the baseline CREPE Notes measures itself against. | `pip install basic-pitch` |
+| 2 | **GAME** (OpenVPI) | The most recent singing-specific system that transcribes a whole directory to MIDI in one command, MIT, explicitly built for separated or noisy vocals. | clone + checkpoint from releases |
+| 3 | **MIR-ST500 baseline** (york135) | Pretrained weights committed *in the repository* -- no Drive link, no Baidu. One command per file, MIDI out. | clone + `do_everything.py` |
 | 4 | **STARS** | ROSVOT's successor, built on ROSVOT's code by an overlapping group. The `metadata.json` runner in `docs/benchmarking-rosvot.md` transfers almost unchanged. | clone + HuggingFace checkpoints |
-| 5 | **Essentia** `PitchContourSegmentation` | Zero-friction non-neural floor; got all eight synthetic notes right. Worth having so "better than a 2013 signal-processing pipeline" is a measured claim. | `pip install essentia` |
-| 6 | **Phoneme-informed** (seyong92) | Its whole thesis is the onset-convention problem that cost ROSVOT 0.09 COnP here. High diagnostic value regardless of where it scores. | clone + Git LFS checkpoint |
+| 5 | **Essentia** `PitchContourSegmentation` | Zero-friction non-neural entrant; got all eight synthetic notes right. Puts a number on what the pre-neural state of the art does on this corpus. | `pip install essentia` |
+| 6 | **Phoneme-informed** (seyong92) | Its whole thesis is the onset-convention problem that cost ROSVOT 0.09 COnP here. High diagnostic value wherever it places. | clone + Git LFS checkpoint |
 | 7 | **CREPE Notes** | Architecturally the closest cousin to an f0-tracker-plus-segmenter, so it measures whether this pipeline's shape or its details are doing the work. Four install blockers; not run here. | an afternoon |
 
 Below that line: **Omnizart** (`vocal`) via its Docker image since pip fails,
@@ -63,26 +164,34 @@ Below that line: **Omnizart** (`vocal`) via its Docker image since pip fails,
 transcription, and **VocalParse** if you are willing to write a token-sequence
 to MIDI converter for a 1.7B checkpoint.
 
+Run them all before believing any ordering among them, and be careful about
+what the ordering supports. Forty recordings support "COnP 0.59, 95% CI
+0.54-0.64"; they do not support "0.59 beats 0.58". Seven systems is
+twenty-one pairwise comparisons, and at 95% intervals about one in twenty
+separates two systems that are actually level -- so read `--compare`, which
+bootstraps the paired difference, rather than eyeballing a league table of
+overlapping intervals.
+
 ## Singing-specific note transcription
 
 These are trained on singing and predict note events. Language is Python and
 the framework PyTorch unless stated.
 
-| System | Licence | Last commit | Writes | Checkpoints |
-|---|---|---|---|---|
-| [ROSVOT](https://github.com/RickyL-2000/ROSVOT) | MIT | 2024-11-20 | MIDI per item | Google Drive |
-| [STARS](https://github.com/gwx314/STARS) | MIT | 2026-08-18 | notes + phoneme alignment | HuggingFace |
-| [GAME](https://github.com/openvpi/GAME) | MIT | 2026-08-30 | MIDI, txt, csv | GitHub releases |
-| [SOME](https://github.com/openvpi/SOME) | MIT | 2026-03-07 | MIDI (float pitch) | GitHub releases |
-| [VOCANO](https://github.com/B05901022/VOCANO) | MIT | 2021-08-09 | MIDI + wav | in repo |
-| [Omnizart](https://github.com/Music-and-Culture-Technology-Lab/omnizart) `vocal` | MIT | 2026-05-31 | MIDI | `omnizart download-checkpoints` |
-| [singing_transcription_ICASSP2021](https://github.com/york135/singing_transcription_ICASSP2021) | none | 2026-03-05 | MIDI | **in repo** |
-| [CTC_CE_for_AST](https://github.com/york135/CTC_CE_for_AST) | none | 2025-03-25 | MIDI | Google Drive |
-| [phoneme-informed](https://github.com/seyong92/phoneme-informed-note-level-singing-transcription) | MIT | 2023-09-09 | MIDI | Git LFS / release |
-| [icassp2022-vocal-transcription](https://github.com/keums/icassp2022-vocal-transcription) | none | 2022-05-12 | MIDI | in repo |
-| [MusicYOLO](https://github.com/itec-hust/MusicYOLO) | Apache-2.0 | 2022-01-29 | onset/offset + pitch | Baidu Pan |
-| [VocalParse](https://github.com/pymaster17/VocalParse) | Apache-2.0 | 2026-06-16 | token sequence | HuggingFace |
-| [SVT_SpeechBrain](https://github.com/guxm2021/SVT_SpeechBrain) | Apache-2.0 | 2024-08-30 | note events | on request |
+| System | Licence | Last commit | Writes | Checkpoints | Found via |
+|---|---|---|---|---|---|
+| [ROSVOT](https://github.com/RickyL-2000/ROSVOT) | MIT | 2024-11-20 | MIDI per item | Google Drive | seed (already scored here) |
+| [STARS](https://github.com/gwx314/STARS) | MIT | 2026-08-18 | notes + phoneme alignment | HuggingFace | S11 |
+| [GAME](https://github.com/openvpi/GAME) | MIT | 2026-08-30 | MIDI, txt, csv | GitHub releases | link from SOME README |
+| [SOME](https://github.com/openvpi/SOME) | MIT | 2026-03-07 | MIDI (float pitch) | GitHub releases | S4 |
+| [VOCANO](https://github.com/B05901022/VOCANO) | MIT | 2021-08-09 | MIDI + wav | in repo | seed (named in request) |
+| [Omnizart](https://github.com/Music-and-Culture-Technology-Lab/omnizart) `vocal` | MIT | 2026-05-31 | MIDI | `omnizart download-checkpoints` | link from VOCANO README |
+| [singing_transcription_ICASSP2021](https://github.com/york135/singing_transcription_ICASSP2021) | none | 2026-03-05 | MIDI | **in repo** | S3 |
+| [CTC_CE_for_AST](https://github.com/york135/CTC_CE_for_AST) | none | 2025-03-25 | MIDI | Google Drive | snowball from S3 |
+| [phoneme-informed](https://github.com/seyong92/phoneme-informed-note-level-singing-transcription) | MIT | 2023-09-09 | MIDI | Git LFS / release | snowball S5 to S9 |
+| [icassp2022-vocal-transcription](https://github.com/keums/icassp2022-vocal-transcription) | none | 2022-05-12 | MIDI | in repo | snowball from S2 |
+| [MusicYOLO](https://github.com/itec-hust/MusicYOLO) | Apache-2.0 | 2022-01-29 | onset/offset + pitch | Baidu Pan | S10 |
+| [VocalParse](https://github.com/pymaster17/VocalParse) | Apache-2.0 | 2026-06-16 | token sequence | HuggingFace | S5 |
+| [SVT_SpeechBrain](https://github.com/guxm2021/SVT_SpeechBrain) | Apache-2.0 | 2024-08-30 | note events | on request | S3 |
 
 **ROSVOT** (Li et al., ACL 2024) is the one already scored -- see
 `docs/benchmarking-rosvot.md`. Trained on M4Singer only, in the checkpoint its
@@ -203,22 +312,25 @@ interests you.
 
 ## General transcription pointed at a vocal stem
 
-None of these are singing systems. They are here because a solo vocal is a
-monophonic instrument, and because a generalist that has never seen a singer is
-the honest floor for a specialist that has.
+None of these are singing systems, though that does not mean none has heard
+singing -- Basic Pitch's training mix includes two vocal corpora, and it is
+worth knowing which generalists are actually naive about voice before reading
+anything into their scores. They are here because a solo vocal is a monophonic
+instrument, and because a model that was not built for singing is the control
+condition for one that was.
 
-| System | Language | Licence | Last commit | Installs here? |
-|---|---|---|---|---|
-| [Basic Pitch](https://github.com/spotify/basic-pitch) | Python (TF/CoreML/TFLite/ONNX) | Apache-2.0 | 2025-11-13 | **yes** |
-| [basic-pitch-ts](https://github.com/spotify/basic-pitch-ts) | TypeScript | Apache-2.0 | 2023-01-10 | npm |
-| [NeuralNote](https://github.com/DamRsn/NeuralNote) | C++ / JUCE | Apache-2.0 | 2025-01-16 | VST3/AU/standalone |
-| [CREPE Notes](https://github.com/xavriley/crepe_notes) | Python | GPL-3.0 | 2026-03-13 | **no** -- see below |
-| [YourMT3](https://github.com/mimbres/YourMT3) | Python | GPL-3.0 | 2024-11-29 | clone |
-| [MT3](https://github.com/magenta/mt3) | Python / JAX / T5X | Apache-2.0 | 2026-07-08 | Colab |
-| [Sheet Sage](https://github.com/chrisdonahue/sheetsage) | Python + Docker | MIT | 2025-05-13 | Docker |
-| [Essentia](https://github.com/MTG/essentia) | C++ / Python | AGPL-3.0 | 2026-08-27 | **yes** |
-| [aubio](https://github.com/aubio/aubio) | C / Python | GPL-3.0 | 2026-04-10 | **yes** |
-| [Tony](https://github.com/sonic-visualiser/tony) / pYIN | C++ / Qt | GPL-2.0+ | 2024-07-02 | source build |
+| System | Language | Licence | Last commit | Installs here? | Found via |
+|---|---|---|---|---|---|
+| [Basic Pitch](https://github.com/spotify/basic-pitch) | Python (TF/CoreML/TFLite/ONNX) | Apache-2.0 | 2025-11-13 | **yes** | seed (named in request) |
+| [basic-pitch-ts](https://github.com/spotify/basic-pitch-ts) | TypeScript | Apache-2.0 | 2023-01-10 | npm | link from Basic Pitch README |
+| [NeuralNote](https://github.com/DamRsn/NeuralNote) | C++ / JUCE | Apache-2.0 | 2025-01-16 | VST3/AU/standalone | prior knowledge, verified |
+| [CREPE Notes](https://github.com/xavriley/crepe_notes) | Python | GPL-3.0 | 2026-03-13 | **no** -- see below | seed (named in request) |
+| [YourMT3](https://github.com/mimbres/YourMT3) | Python | GPL-3.0 | 2024-11-29 | clone | S3, then S7 |
+| [MT3](https://github.com/magenta/mt3) | Python / JAX / T5X | Apache-2.0 | 2026-07-08 | Colab | lineage from YourMT3 |
+| [Sheet Sage](https://github.com/chrisdonahue/sheetsage) | Python + Docker | MIT | 2025-05-13 | Docker | S13 |
+| [Essentia](https://github.com/MTG/essentia) | C++ / Python | AGPL-3.0 | 2026-08-27 | **yes** | prior knowledge, verified |
+| [aubio](https://github.com/aubio/aubio) | C / Python | GPL-3.0 | 2026-04-10 | **yes** | prior knowledge, verified |
+| [Tony](https://github.com/sonic-visualiser/tony) / pYIN | C++ / Qt | GPL-2.0+ | 2024-07-02 | source build | S15, S16 |
 
 **Basic Pitch** (Bittner et al., ICASSP 2022) is the one to run first, for the
 dull reason that it works. `pip install basic-pitch` succeeded into a clean
@@ -231,12 +343,21 @@ VST3/AU/standalone plugin that wraps the same model with a piano-roll editor and
 drag-out MIDI -- the right answer if the comparison you want is against what a
 musician would actually reach for).
 
-Two cautions. Basic Pitch is polyphonic, so on a vocal it can return
-simultaneous notes where the reference has one, and that is a precision
-penalty for a capability the task does not want -- worth reporting alongside,
-not silently filtering. And Rachel Bittner is an author of both Basic Pitch and
-vocadito; before quoting a vocadito number for it, check its training mix in the
-ICASSP 2022 paper, which I could not open from this environment.
+Two cautions, one of which turned out not to be a problem. Basic Pitch is
+polyphonic, so on a vocal it can return simultaneous notes where the reference
+has one -- a precision penalty for a capability the task does not want, worth
+reporting alongside rather than silently filtering.
+
+The other was the shared authorship: Rachel Bittner wrote both Basic Pitch and
+vocadito, which is exactly the shape a contaminated baseline takes. It checks
+out clean. Basic Pitch's training pipeline registers five datasets and only
+five -- `guitarset`, `ikala`, `maestro`, `medleydb_pitch`, `slakh`, in
+`basic_pitch/data/download.py` -- and vocadito appears nowhere in them. It
+appears in that repository only as a *test fixture* (`vocadito_10.wav` in the
+inference tests) and in `NOTICE` for its licence. Note in passing that two of
+the five, iKala and MedleyDB-Pitch, are vocal corpora: Basic Pitch is not a
+model that has never heard a singer, it is a model that was never tuned to be
+one.
 
 **CREPE Notes** (Riley and Dixon, SMC 2023 -- the paper that prompted this
 survey) post-processes CREPE's f0 into notes by combining the gradient of the
@@ -334,11 +455,14 @@ with Tony then measuring Tony against them measures agreement with an editing
 tool, not transcription accuracy. The vocadito technical report will say; this
 is a flag, not a finding.
 
-Also noted and not pursued: [bill317996/Audio-to-midi](https://github.com/bill317996/Audio-to-midi)
-(MIT, melody extraction via MSnet, python 3.6/torch 1.0, last touched 2019-era)
-and [tuneflow/singing-transcription-plugin](https://github.com/tuneflow/singing-transcription-plugin),
-which is a DAW wrapper around york135's ICASSP 2021 model rather than a system
-of its own.
+Three more met the criteria and were not pursued, listed so the exclusion is
+visible rather than silent: [bill317996/Audio-to-midi](https://github.com/bill317996/Audio-to-midi)
+(MIT, melody extraction via MSnet, python 3.6 / torch 1.0, 2019-era),
+[tuneflow/singing-transcription-plugin](https://github.com/tuneflow/singing-transcription-plugin)
+(a DAW wrapper around york135's ICASSP 2021 model rather than a system of its
+own), and [Xiantaidu/Vocal2Midi](https://github.com/Xiantaidu/Vocal2Midi),
+a one-click vocal MIDI extraction and lyric injection tool that surfaced in S4
+and which I did not assess beyond its description.
 
 ## Published, no code found
 
@@ -356,35 +480,63 @@ repository. Listed so the next person does not repeat the search.
 
 ## Hazards that apply to the whole list
 
-**Training contamination.** Two of this project's four corpora appear on the
-training side of systems here. M4Singer trained ROSVOT and, presumably, STARS.
-MIR-ST500 songs 1-400 trained york135's two models. Anything from the
-DiffSinger world has seen large quantities of Mandarin singing of unclear
-provenance. `--items` exists for published test splits and should be used by
-default, not when someone remembers.
+### Training contamination
 
-**Annotation convention, again.** The 41 ms that `--onset-shift` corrected for
-ROSVOT is not a ROSVOT bug; it is M4Singer's definition of where a note starts
-(the syllable, including its leading consonant) travelling with the model.
-Expect it from every M4Singer-trained system, expect it not to appear in
-systems trained on pitch-annotated corpora, and let the report's own diagnostic
-say which case each one is rather than assuming.
+**No system in this survey trains on vocadito**, which is why vocadito is where
+the comparison should be run. What was checked, and how:
 
-**Where checkpoints live** is a real axis of availability, not an
-inconvenience. In repository (york135 ICASSP2021, keums, VOCANO) is best;
-GitHub releases (SOME, GAME, phoneme-informed) is fine; HuggingFace (STARS,
-VocalParse) is fine; Google Drive (ROSVOT, CTC_CE_for_AST) rots and rate-limits;
-Baidu Pan (MusicYOLO) is effectively unavailable outside China. A system whose
-weights you cannot fetch is not a baseline.
+| System | Trains on | Source of the claim |
+|---|---|---|
+| Basic Pitch | GuitarSet, iKala, MAESTRO, MedleyDB-Pitch, Slakh | **read from source** -- the dataset registry in `basic_pitch/data/download.py` |
+| ROSVOT | M4Singer | its README, for the published checkpoint |
+| york135 x2 | MIR-ST500 songs 1-400 | its README |
+| YourMT3+ | ten datasets; singing from MIR-ST500 and CMedia | paper, via search (repo code is pre-release) |
+| MT3 | MAESTROv3, Slakh2100/Cerberus4, GuitarSet, MusicNet, URMP | paper, via search -- instrumental only |
+| CREPE Notes | nothing; it is post-processing over CREPE | its README and method |
+| STARS | Chinese / bilingual singing corpora | **not verified** -- assume M4Singer-like |
+| SOME, GAME | OpenVPI community data | **not verified** -- check the technical report |
 
-**Licences that constrain more than the code.** CREPE Notes is GPL-3.0 *and*
-inherits madmom's non-commercial restriction. Essentia is AGPL-3.0. YourMT3 and
-Tony are GPL. Three of the singing-specific repositories -- york135's two and
-keums' -- ship **no licence file at all**, which means no grant of rights, not
-"do as you like": fine for measuring privately, not for anything downstream.
+Two of this project's four corpora *are* contaminated, which matters the moment
+you score on them rather than on vocadito. M4Singer trained ROSVOT and probably
+STARS. MIR-ST500 songs 1-400 trained both york135 models and fed YourMT3+.
+`--items` exists for published test splits and should be the default there, not
+something remembered.
 
-**Filename pairing.** `pair_estimates` matches an estimate to an item by exact
-stem first, then by a prefix followed by `_`, `-` or `.`. Basic Pitch's
+The three unverified rows are the honest gaps. None of them threatens a
+vocadito comparison -- vocadito is 40 excerpts released in 2021 as an
+evaluation set and appears in no training pipeline examined -- but each should
+be pinned down before quoting a number on M4Singer or MIR-ST500.
+
+### Annotation convention, again
+
+The 41 ms that `--onset-shift` corrected for ROSVOT is not a ROSVOT bug; it is
+M4Singer's definition of where a note starts (the syllable, including its
+leading consonant) travelling with the model. Expect it from every
+M4Singer-trained system, expect it not to appear in systems trained on
+pitch-annotated corpora, and let the report's own diagnostic say which case
+each one is rather than assuming.
+
+### Where checkpoints live
+
+This is a real axis of availability, not an inconvenience. In repository
+(york135 ICASSP2021, keums, VOCANO) is best; GitHub releases (SOME, GAME,
+phoneme-informed) is fine; HuggingFace (STARS, VocalParse) is fine; Google
+Drive (ROSVOT, CTC_CE_for_AST) rots and rate-limits; Baidu Pan (MusicYOLO) is
+effectively unavailable outside China. A system whose weights you cannot fetch
+is not a baseline.
+
+### Licences that constrain more than the code
+
+CREPE Notes is GPL-3.0 *and* inherits madmom's non-commercial restriction.
+Essentia is AGPL-3.0. YourMT3 and Tony are GPL. Three of the singing-specific
+repositories -- york135's two and keums' -- ship **no licence file at all**,
+which means no grant of rights, not "do as you like": fine for measuring
+privately, not for anything downstream.
+
+### Filename pairing
+
+`pair_estimates` matches an estimate to an item by exact stem first, then by a
+prefix followed by `_`, `-` or `.`. Basic Pitch's
 `sung_phrase_basic_pitch.mid` and CREPE Notes'
 `sung_phrase.crepe.transcription.mid` both pair through the prefix rule, so
 neither needs renaming -- but the pairing is reported as non-exact, and that
@@ -392,7 +544,11 @@ line in the report is worth reading rather than skipping. Systems that write
 one file per directory, or number their outputs, will need renaming before
 `--estimates` sees them.
 
-**What the smoke test does not tell you.** Basic Pitch and Essentia both scored
-8/8 on a synthetic phrase with clean harmonics and a steady 5.2 Hz vibrato.
-vocadito is untrained singers on phone microphones in seven languages. The
-agreement here means only that the plumbing works.
+### What the smoke test does not tell you
+
+Basic Pitch and Essentia both scored 8/8 on a synthetic phrase with clean
+harmonics and a steady 5.2 Hz vibrato. vocadito is untrained singers on phone
+microphones in seven languages. The agreement here means only that the
+plumbing works, which is all a survey can establish. The ordering is a
+question for the benchmark, on the same 40 recordings, against the same
+references, read against the 0.740 COnP two annotators manage between them.
