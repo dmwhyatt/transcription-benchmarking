@@ -287,9 +287,21 @@ def cmd_build(args) -> int:
             source = Path(configured).expanduser()
             if not source.is_absolute():
                 source = (HERE.parent / source).resolve()
-            if not (source / "pyproject.toml").exists() and not source.is_dir():
-                log(f"{system.name}: no checkout at {source}. Set "
-                    f"{system.build_context_env} to where it is.")
+            # Two different problems, and they want different answers, so
+            # the original `and` here -- which only complained when both were
+            # true -- was wrong twice over.
+            if not source.is_dir():
+                log(f"{system.name}: no checkout at {source}")
+                log(f"    Either clone it:  git clone "
+                    f"https://github.com/dmwhyatt/{system.name} {source}")
+                log(f"    or point at one:  export "
+                    f"{system.build_context_env}=/path/to/{system.name}")
+                failures.append(system.name)
+                continue
+            if not (source / "pyproject.toml").exists():
+                log(f"{system.name}: {source} exists but has no pyproject.toml, "
+                    "so it does not look like the source of this system. "
+                    f"Check {system.build_context_env}.")
                 failures.append(system.name)
                 continue
             log(f"{system.name}: building from {source}")
@@ -435,6 +447,20 @@ def transcribe_one(system, audio_dir: Path, expected: int, work: Work, args) -> 
     if not (args.allow_network or system.needs_network):
         argv += ["--network", "none"]
     argv += system.docker_args + [system.tag]
+
+    # Without this, docker treats an unbuilt tag as something to pull and the
+    # failure arrives as "pull access denied ... may require docker login",
+    # which sends you looking for a credentials problem that does not exist.
+    if not args.dry_run:
+        probe = subprocess.run(["docker", "image", "inspect", system.tag],
+                               capture_output=True, text=True)
+        if probe.returncode != 0:
+            log(f"{system.name}: no image {system.tag}. Run "
+                f"`./bench.py --only {system.name} build` first.")
+            return {"system": system.name, "title": system.title,
+                    "status": "not built", "exit_code": None, "seconds": 0.0,
+                    "expected_items": expected, "midi_written": 0,
+                    "image": system.tag}
 
     for flag, value in zip(argv, argv[1:]):
         if flag == "-v":
