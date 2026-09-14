@@ -201,8 +201,11 @@ to MIDI converter for a 1.7B checkpoint.
 
 `orchestrator/` runs this list: one pinned image per system, the same
 read-only audio into all of them, MIDI out under one naming convention, then
-`--estimates` and a paired comparison of every pair. Nine of the systems below
+`--estimates` and a paired comparison of every pair. Ten of the systems below
 have images; the rest are registered with what is missing.
+
+**This has now been run.** `docs/transcpybe-v1.md` has the result: ten systems
+over vocadito's forty recordings, and what it does and does not establish.
 
 Run them all before believing any ordering among them, and be careful about
 what the ordering supports. Forty recordings support "COnP 0.59, 95% CI
