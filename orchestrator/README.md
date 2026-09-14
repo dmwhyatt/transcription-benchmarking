@@ -103,6 +103,36 @@ bug you just fixed, which is indistinguishable from not having fixed it.
 produces, and MusicYOLO's weights are on Baidu Pan. Eight more are registered
 as planned. Adding one is an entry in `systems.py` plus a directory here.
 
+## Measuring a new version against the old one
+
+Re-running a system overwrites its output and its score, which destroys the
+record you want to compare against. `--as` files a run under a different name:
+
+```shell
+# the record of v1 already exists; keep it
+mv bench-work/out/transcpybe     bench-work/out/transcpybe-v1
+mv bench-work/results/transcpybe.json bench-work/results/transcpybe-v1.json
+
+git -C ~/transcpybe pull
+./bench.py --only transcpybe --as transcpybe-v2 build --prune
+./bench.py --only transcpybe --as transcpybe-v2 transcribe --audio ~/vocadito/
+./bench.py score --audio ~/vocadito/Audio -a ~/vocadito/Annotations
+./bench.py table
+./bench.py compare
+```
+
+The label renames the image tag as well, so `bench/transcpybe-v1` survives and
+v1 stays re-runnable. Each run records the commit its source was on --
+`source_revision` in `run.json`, with `-dirty` if the checkout had uncommitted
+changes -- so a row can always be traced back to a version.
+
+`compare` is the point of doing it this way. Two versions of one transcriber
+over the same recordings is a paired measurement, and the paired difference is
+far tighter than two overlapping intervals: it removes the per-recording
+difficulty that both versions share. A change worth keeping shows up there, in
+an interval that excludes zero, long before it separates two error bars in the
+table.
+
 ## A system whose source is private
 
 transcPybe cannot be cloned inside a Docker build, because it is private and a

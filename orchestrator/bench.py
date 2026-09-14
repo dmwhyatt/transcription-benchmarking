@@ -258,6 +258,34 @@ def cmd_doctor(args) -> int:
     return 0 if ok else 1
 
 
+def label_for(system, args) -> str:
+    """The name this run is filed under: the system's, or an alias.
+
+    An alias is how the same system is measured twice without the second run
+    destroying the first -- a new version of a transcriber against the record
+    of the old one, which is the comparison that says whether a change helped.
+    """
+    alias = getattr(args, "label", None)
+    return alias or system.name
+
+
+def label_tag(system, args) -> str:
+    alias = getattr(args, "label", None)
+    return f"bench/{alias}" if alias else system.tag
+
+
+def source_revision(source: Path) -> str:
+    """The commit a local checkout is on, so a run can be traced to a version."""
+    probe = subprocess.run(["git", "-C", str(source), "rev-parse", "--short", "HEAD"],
+                           capture_output=True, text=True)
+    if probe.returncode != 0:
+        return ""
+    dirty = subprocess.run(["git", "-C", str(source), "status", "--porcelain"],
+                           capture_output=True, text=True)
+    suffix = "-dirty" if dirty.stdout.strip() else ""
+    return probe.stdout.strip() + suffix
+
+
 def cmd_build(args) -> int:
     """Build each image, keeping the output, because "build failed: aubio" is
     not a diagnosis. The log is written per system and its tail printed on
@@ -305,11 +333,14 @@ def cmd_build(args) -> int:
                 failures.append(system.name)
                 continue
             log(f"{system.name}: building from {source}")
+            revision = source_revision(source)
+            if revision:
+                log(f"{system.name}: source at {revision}")
             build_args = ["-f", str(dockerfile), str(source)]
         logfile = work.logs / f"build-{system.name}.log"
         try:
             result = run(["docker", "build", "--progress=plain",
-                          "-t", system.tag] + build_args,
+                          "-t", label_tag(system, args)] + build_args,
                          check=False, dry=args.dry_run, capture=True,
                          timeout=getattr(args, "build_timeout", 3600),
                          tee=None if args.dry_run else logfile)
@@ -412,7 +443,8 @@ def cmd_transcribe(args) -> int:
 
 
 def transcribe_one(system, audio_dir: Path, expected: int, work: Work, args) -> Dict:
-    out = work.out(system.name)
+    label = label_for(system, args)
+    out = work.out(label)
     if args.fresh and out.exists():
         shutil.rmtree(out)
         out = work.out(system.name)
@@ -423,7 +455,7 @@ def transcribe_one(system, audio_dir: Path, expected: int, work: Work, args) -> 
             "-v", f"{audio_dir}:/audio:ro",
             "-v", f"{out}:/out",
             "-v", f"{work.ckpt(system.name)}:/ckpt:ro",
-            "-v", f"{work.cache(system.name)}:/cache"]
+            "-v", f"{work.cache(label)}:/cache"]
 
     # The adapter is COPYed into the image so it can run standalone, and
     # mounted over that copy here so it is never the stale one. Editing an
@@ -446,21 +478,22 @@ def transcribe_one(system, audio_dir: Path, expected: int, work: Work, args) -> 
     # out in six months.
     if not (args.allow_network or system.needs_network):
         argv += ["--network", "none"]
-    argv += system.docker_args + [system.tag]
+    argv += system.docker_args + [label_tag(system, args)]
 
     # Without this, docker treats an unbuilt tag as something to pull and the
     # failure arrives as "pull access denied ... may require docker login",
     # which sends you looking for a credentials problem that does not exist.
     if not args.dry_run:
-        probe = subprocess.run(["docker", "image", "inspect", system.tag],
+        probe = subprocess.run(["docker", "image", "inspect", label_tag(system, args)],
                                capture_output=True, text=True)
         if probe.returncode != 0:
-            log(f"{system.name}: no image {system.tag}. Run "
-                f"`./bench.py --only {system.name} build` first.")
-            return {"system": system.name, "title": system.title,
+            alias = f" --as {label}" if label != system.name else ""
+            log(f"{label}: no image {label_tag(system, args)}. Run "
+                f"`./bench.py --only {system.name}{alias} build` first.")
+            return {"system": label, "title": system.title,
                     "status": "not built", "exit_code": None, "seconds": 0.0,
                     "expected_items": expected, "midi_written": 0,
-                    "image": system.tag}
+                    "image": label_tag(system, args)}
 
     for flag, value in zip(argv, argv[1:]):
         if flag == "-v":
@@ -470,12 +503,12 @@ def transcribe_one(system, audio_dir: Path, expected: int, work: Work, args) -> 
                 "refuse it with exit 125")
 
     started = time.time()
-    logfile = work.logs / f"{system.name}.log"
+    logfile = work.logs / f"{label}.log"
     if args.dry_run:
         run(argv, dry=True)
         return {"system": system.name, "status": "dry-run"}
 
-    log(f"--- {system.name} ---")
+    log(f"--- {label} ---")
     with logfile.open("w") as handle:
         proc = subprocess.run([str(a) for a in argv], stdout=handle,
                               stderr=subprocess.STDOUT, timeout=args.timeout)
@@ -493,27 +526,38 @@ def transcribe_one(system, audio_dir: Path, expected: int, work: Work, args) -> 
     if proc.returncode != 0:
         tail = logfile.read_text().splitlines()[-12:] if logfile.exists() else []
         if tail:
-            log(f"{system.name}: last {len(tail)} lines of {logfile}")
+            log(f"{label}: last {len(tail)} lines of {logfile}")
             for line in tail:
                 print(f"    {line}")
 
+    source = None
+    if system.build_context_env:
+        configured = (os.environ.get(system.build_context_env)
+                      or system.build_context_default)
+        candidate = Path(configured).expanduser()
+        if not candidate.is_absolute():
+            candidate = (HERE.parent / candidate).resolve()
+        source = source_revision(candidate) or None
+
     record = {
-        "system": system.name,
+        "system": label,
+        "of_system": system.name,
+        "source_revision": source,
         "title": system.title,
         "status": status,
         "exit_code": proc.returncode,
         "seconds": round(elapsed, 1),
         "expected_items": expected,
         "midi_written": len(written),
-        "image": system.tag,
-        "image_id": image_id(system.tag),
+        "image": label_tag(system, args),
+        "image_id": image_id(label_tag(system, args)),
         "command": " ".join(str(a) for a in argv),
         "audio_dir": str(audio_dir),
         "log": str(logfile),
         "finished": dt.datetime.now().isoformat(timespec="seconds"),
     }
     (out / "run.json").write_text(json.dumps(record, indent=2))
-    log(f"{system.name}: {status}, {len(written)} midi, {elapsed:.0f}s")
+    log(f"{label}: {status}, {len(written)} midi, {elapsed:.0f}s")
     return record
 
 
@@ -526,12 +570,22 @@ def image_id(tag: str) -> str:
 def cmd_score(args) -> int:
     work = Work(Path(args.work))
     scored, skipped = [], []
-    for system in selected(args):
-        midi = work.out(system.name) / "midi"
-        if not midi.is_dir() or not any(midi.rglob("*.mid")):
-            skipped.append(system.name)
+    # Over the output directories, not the registry: a run filed under an
+    # alias -- transcpybe-v2 against transcpybe-v1 -- has no registry entry,
+    # and it is exactly the run most worth scoring.
+    wanted = ([name.strip() for name in args.only.split(",") if name.strip()]
+              if args.only else None)
+    for directory in sorted((work.root / "out").iterdir()):
+        if not directory.is_dir():
             continue
-        target = work.results / f"{system.name}.json"
+        name = directory.name
+        if wanted is not None and name not in wanted:
+            continue
+        midi = directory / "midi"
+        if not midi.is_dir() or not any(midi.rglob("*.mid")):
+            skipped.append(name)
+            continue
+        target = work.results / f"{name}.json"
         argv = ["transcription-benchmark", args.audio, "--estimates", str(midi),
                 "-o", str(target)]
         if args.annotations:
@@ -541,9 +595,9 @@ def cmd_score(args) -> int:
         argv += args.passthrough
         result = run(argv, check=False, dry=args.dry_run)
         if args.dry_run or result.returncode == 0:
-            scored.append(system.name)
+            scored.append(name)
         else:
-            skipped.append(system.name)
+            skipped.append(name)
     log(f"scored: {', '.join(scored) or 'none'}")
     if skipped:
         log(f"not scored: {', '.join(skipped)}")
@@ -709,6 +763,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     build.add_argument("--include-planned", action="store_true")
     build.add_argument("--prune", action="store_true",
                        help="docker builder prune between images, for a tight disk")
+    build.add_argument("--as", dest="label", default=None, metavar="LABEL",
+                       help="tag the image bench/LABEL instead of bench/<system>, "
+                            "so a new version can be built without replacing "
+                            "the image the previous run used")
     build.add_argument("--build-timeout", type=int, default=3600,
                        help="seconds before a build is assumed stuck (default 3600)")
 
@@ -725,6 +783,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                        help="delete a system's previous output first")
     trans.add_argument("--allow-network", action="store_true",
                        help="containers run with --network none by default")
+    trans.add_argument("--as", dest="label", default=None, metavar="LABEL",
+                       help="file this run under LABEL rather than the system "
+                            "name, keeping an earlier run's output and score "
+                            "intact. Requires a single --only.")
     trans.add_argument("--shm-size", default="2g",
                        help="/dev/shm per container (default 2g); docker's own "
                             "64m default is too small for DataLoader workers")
@@ -752,11 +814,17 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     every.add_argument("--fresh", action="store_true")
     every.add_argument("--allow-network", action="store_true")
     every.add_argument("--shm-size", default="2g")
+    every.set_defaults(label=None)
     every.set_defaults(markdown=False)
     every.add_argument("--include-planned", action="store_true")
     every.set_defaults(passthrough=[])
 
     args = parser.parse_args(argv)
+    if getattr(args, "label", None):
+        chosen = [n for n in (args.only or "").split(",") if n.strip()]
+        if len(chosen) != 1:
+            parser.error("--as labels a single system; pass exactly one "
+                         "--only, e.g. --only transcpybe --as transcpybe-v2")
     return {
         "doctor": cmd_doctor, "build": cmd_build, "fetch": cmd_fetch,
         "transcribe": cmd_transcribe, "score": cmd_score,
