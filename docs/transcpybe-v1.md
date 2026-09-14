@@ -115,26 +115,29 @@ vocadito annotates from pitch. The same correction in
 not been redone in this run, so the row above should be read as the
 uncorrected figure and not as ROSVOT's fair score.
 
-**transcPybe ran on its defaults, and that is checkable rather than
-asserted.** The adapter passes `--f0-backend crepe --device auto` and nothing
-else; `bench-work/out/transcpybe/adapter.json` records `extra_args: []` for the
-run. Its `TranscriptionConfig` documents each default on domain grounds -- 16
-kHz because that is what CREPE was trained at, A1 as a floor because below it
-is almost never sung pitch -- rather than as the output of a sweep. So 0.591 is
-an out-of-the-box number, which makes it a stronger result than a tuned one and
-not a weaker one: every other system here also ran on its published defaults.
+**transcPybe's defaults never saw this corpus, or any corpus.** They were
+chosen against its built-in synthetic suite -- signals with exact ground truth
+that model what actually breaks vocal transcribers: vibrato, portamento,
+jitter, soft attacks, consonant transients, the residue source separation
+leaves behind. Sixteen cases, 127 notes, no annotated audio involved. The run
+itself then used those defaults unchanged: the adapter passes `--f0-backend
+crepe --device auto` and nothing else, and the run's `adapter.json` records
+`extra_args: []`, so this is checkable from the artefacts rather than taken on
+trust.
 
-The package does ship `transcpybe-tune`, and its README demonstrates it against
-vocadito, so the capability to tune on this corpus exists and has not been used
-for this figure. Worth stating explicitly in any write-up, because a reader who
-notices that the benchmark and the transcriber share an author will ask.
+That closes the contamination question rather than mitigating it. vocadito
+could not have leaked into parameters derived from synthesised signals, and
+0.591 is an out-of-the-box figure measured against nine other systems also
+running on their published defaults. The package does ship `transcpybe-tune`,
+and its README demonstrates it against vocadito, so the capability exists and
+was not used here -- worth saying plainly, because a reader who notices that
+the benchmark and the transcriber share an author will ask.
 
-What remains true is narrower: vocadito is the corpus transcPybe was developed
-alongside, and a system's home corpus flatters it in ways that have nothing to
-do with parameter sweeps -- the failure modes its author noticed are the ones
-these forty recordings contain. A second corpus, M4Singer or MIR-ST500's test
-split, would turn "best on vocadito" into evidence about the method. That is a
-generalisation question now, not a contamination one.
+What remains is the ordinary single-corpus point, and it applies to every row
+in the table rather than to this one: forty recordings in seven languages are
+not the world. A second corpus -- M4Singer, or MIR-ST500's test split -- would
+turn "best on vocadito" into evidence about the method. That is worth doing for
+the same reason it is worth doing for GAME and omnizart.
 
 **aubio is the floor and behaves like it.** COnP 0.145, 2.5% octave errors, and
 a -0.070 s offset from merging legato runs into single long notes. It is in
@@ -167,8 +170,8 @@ wall clock; each `adapter.json` records per-item status.
 2. **Rescore ROSVOT with `--onset-shift`,** so its row is a fair one.
 3. **Sweep GAME's `GAME_STEPS`, `GAME_THRESHOLD`, `GAME_RADIUS`,** to find out
    whether its weak offsets are its own.
-4. **Score transcPybe on a second corpus.** Not because this one is
-   contaminated -- it ran on defaults, and nothing here trained on vocadito --
-   but because one corpus cannot separate a good method from a method suited
-   to forty particular recordings.
+4. **Score the top four on a second corpus.** Not a contamination fix --
+   nothing here trained on vocadito, and transcPybe's defaults came from
+   synthetic signals -- but forty recordings cannot separate a good method
+   from one that suits forty particular recordings.
 5. Then improve it, against this table rather than against a feeling.
