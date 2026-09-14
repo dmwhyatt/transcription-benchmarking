@@ -403,6 +403,13 @@ def transcribe_one(system, audio_dir: Path, expected: int, work: Work, args) -> 
         argv += ["-v", f"{adapter}:/adapter.py:ro"]
     if system.gpu and not args.no_gpu:
         argv += ["--gpus", "all"]
+    # Docker gives a container 64 MB of /dev/shm, and a PyTorch DataLoader with
+    # workers uses shared memory to hand tensors back to the parent. When it
+    # runs out the worker dies on SIGBUS and the traceback blames whichever
+    # conv layer happened to be running -- so a container setting reads as a
+    # model failure. tmpfs allocates lazily, so a bigger size costs nothing
+    # until it is used.
+    argv += [f"--shm-size={getattr(args, 'shm_size', '2g')}"]
     # Offline by default: a system that quietly downloads a model at run time
     # is not reproducible, and finding that out here is cheaper than finding it
     # out in six months.
@@ -588,6 +595,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                        help="delete a system's previous output first")
     trans.add_argument("--allow-network", action="store_true",
                        help="containers run with --network none by default")
+    trans.add_argument("--shm-size", default="2g",
+                       help="/dev/shm per container (default 2g); docker's own "
+                            "64m default is too small for DataLoader workers")
 
     score = sub.add_parser("score", help="score every system's output")
     score.add_argument("--audio", required=True)
@@ -607,6 +617,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     every.add_argument("--no-gpu", action="store_true")
     every.add_argument("--fresh", action="store_true")
     every.add_argument("--allow-network", action="store_true")
+    every.add_argument("--shm-size", default="2g")
     every.add_argument("--include-planned", action="store_true")
     every.set_defaults(passthrough=[])
 

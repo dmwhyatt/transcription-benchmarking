@@ -127,6 +127,10 @@ remarkable model.
 ## Known limits
 
 - **No image has been built.** Stated twice on purpose.
+- **Containers get 2 GB of /dev/shm**, not docker's 64 MB. A PyTorch
+  DataLoader with workers passes tensors through shared memory, and when it
+  runs out the worker dies on SIGBUS with a traceback pointing at whichever
+  layer was running. `--shm-size` changes it.
 - **Timing is wall clock, not a fair speed comparison.** Containers run
   sequentially, but the images differ in how much they do at startup, and a
   batching system like GAME loads its model once where the per-file adapters
