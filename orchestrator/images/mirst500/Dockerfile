@@ -41,6 +41,15 @@ RUN git clone --depth 1 https://github.com/york135/singing_transcription_ICASSP2
 RUN pip install --no-cache-dir "numpy<2" librosa soundfile tqdm mido ffmpeg-python \
     && if [ "$SPLEETER" = "1" ]; then pip install --no-cache-dir spleeter==1.5.4; fi
 
+# net/effnet.py does torch.hub.load('rwightman/gen-efficientnet-pytorch', ...).
+# Even with pretrained=False that clones the repository, so a container with
+# no network dies on name resolution. Cache it here and point TORCH_HOME at
+# the cache, so the lookup is a local hit at run time.
+ENV TORCH_HOME=/opt/torchhub
+RUN mkdir -p /opt/torchhub \
+    && python3 -c "import torch; torch.hub.load('rwightman/gen-efficientnet-pytorch', 'efficientnet_b0', pretrained=False)" \
+    && chmod -R a+rX /opt/torchhub
+
 COPY adapter.py /adapter.py
 ENV PYTHONPATH=/app
 ENTRYPOINT ["python3", "/adapter.py"]

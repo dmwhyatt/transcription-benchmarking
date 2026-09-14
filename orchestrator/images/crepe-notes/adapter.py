@@ -12,6 +12,7 @@ not a number for the paper's method.
 """
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -41,11 +42,17 @@ def main():
         relative = source.relative_to(AUDIO)
         started = time.time()
         with tempfile.TemporaryDirectory(dir=str(CACHE)) as scratch:
+            # crepe_notes writes <stem>.<tracker>.transcription.mid BESIDE the
+            # input, not into the working directory, and /audio is mounted
+            # read-only. So the audio is copied in first and the copy is what
+            # gets transcribed.
+            staged = Path(scratch) / source.name
+            shutil.copy2(source, staged)
             proc = subprocess.run(
                 ["crepe_notes", "--pitch-tracker", BACKEND,
-                 "--min-duration", MIN_DURATION, str(source)],
+                 "--min-duration", MIN_DURATION, str(staged)],
                 cwd=scratch, capture_output=True, text=True)
-            produced = sorted(Path(scratch).rglob("*.mid"))
+            produced = sorted(p for p in Path(scratch).rglob("*.mid"))
             if produced:
                 target = OUT / "midi" / relative.with_suffix(".mid")
                 target.parent.mkdir(parents=True, exist_ok=True)

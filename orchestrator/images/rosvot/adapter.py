@@ -97,12 +97,28 @@ def main():
               "you must set infer_regulate_real_note_itv=False in the hparams "
               "or every item will be skipped silently.", file=sys.stderr)
 
+    print("running:", " ".join(argv), flush=True)
     started = time.time()
     proc = subprocess.run(argv, cwd="/app", capture_output=True, text=True)
     elapsed = time.time() - started
-    print(proc.stdout[-4000:])
-    if proc.returncode != 0:
-        print(proc.stderr[-4000:], file=sys.stderr)
+
+    # ROSVOT prints a full hparams dump on every run, which is long enough to
+    # push the actual error out of any reasonable tail. Show the end of stderr
+    # first, then what it wrote, and only then the noise.
+    if proc.stderr.strip():
+        print("--- stderr ---", file=sys.stderr)
+        print(proc.stderr[-3000:], file=sys.stderr)
+    print(f"--- exit {proc.returncode}; files under {produced_dir} ---")
+    if produced_dir.exists():
+        written = sorted(produced_dir.rglob("*"))
+        for path in written[:20]:
+            print(f"    {path.relative_to(produced_dir)}")
+        if not written:
+            print("    (nothing)")
+    else:
+        print("    (directory was never created)")
+    print("--- last of stdout ---")
+    print(proc.stdout[-1500:])
 
     rows = []
     for name, relative in by_item.items():

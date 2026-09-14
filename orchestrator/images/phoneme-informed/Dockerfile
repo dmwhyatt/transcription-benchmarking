@@ -34,9 +34,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends git ffmpeg libs
 RUN git clone https://github.com/seyong92/phoneme-informed-note-level-singing-transcription /app \
     && cd /app && git checkout b2fcd9ea0f7898a8989c7e65781052d1ffc81094
 
+# torchaudio is NOT in the base image and infer.py imports it on line 5.
+# The version is pinned to match the base image's torch 1.13.1, as upstream's
+# pyproject does.
 RUN pip install --no-cache-dir \
+        "torchaudio==0.13.1" \
         "nnAudio==0.3.2" "mido>=1.2.10" "librosa==0.9.1" "numpy==1.23.4" \
-        "wquantiles>=0.6" soundfile
+        "wquantiles>=0.6" soundfile \
+    && python3 -c "import torch, torchaudio; print('torch', torch.__version__, 'torchaudio', torchaudio.__version__)"
 
 COPY adapter.py /adapter.py
 ENV PYTHONPATH=/app
