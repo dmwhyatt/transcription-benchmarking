@@ -87,6 +87,7 @@ bug you just fixed, which is indistinguishable from not having fixed it.
 
 | System | GPU | Checkpoints | Note |
 |---|---|---|---|
+| `transcpybe` | yes | in image | The incumbent. Built from a local checkout, not a clone -- see below. |
 | `basic-pitch` | no | in image | The one whose install was verified from scratch. |
 | `essentia` | no | none | Non-neural control. AGPL. |
 | `aubio` | no | none | The floor. Merges legato runs. |
@@ -101,6 +102,27 @@ bug you just fixed, which is indistinguishable from not having fixed it.
 `systems.py`: STARS wants word and phoneme sequences its Chinese-only helper
 produces, and MusicYOLO's weights are on Baidu Pan. Eight more are registered
 as planned. Adding one is an entry in `systems.py` plus a directory here.
+
+## A system whose source is private
+
+transcPybe cannot be cloned inside a Docker build, because it is private and a
+Dockerfile has no credentials. Its image is built with a local checkout as the
+build context instead:
+
+```shell
+export TRANSCPYBE_SRC=~/transcpybe     # or keep it at ../transcpybe
+./bench.py --only transcpybe build
+```
+
+Any other closed system can be added the same way -- a `build_context_env` on
+its registry entry and a Dockerfile that `COPY . /src`.
+
+One thing to keep in view while reading its column. transcPybe is the system
+this benchmark was built alongside, which makes it the one most at risk of
+having been tuned until this number improved. That is not an accusation, it is
+the failure mode the repository's own README warns about: a score tuned against
+a benchmark measures the tuning. If its parameters have been swept on vocadito,
+say so beside the number, or report it on a corpus it was not swept on.
 
 ## Checkpoints
 

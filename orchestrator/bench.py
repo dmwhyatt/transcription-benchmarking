@@ -271,14 +271,33 @@ def cmd_build(args) -> int:
         # would then run whatever the upstream entrypoint is, which for
         # omnizart meant printing its own help and exiting 2.
         context = HERE / "images" / system.name
-        if not (context / "Dockerfile").exists():
+        dockerfile = context / "Dockerfile"
+        if not dockerfile.exists():
             log(f"{system.name}: no Dockerfile at {context}, skipping")
             failures.append(system.name)
             continue
+
+        # A system whose source is private cannot be cloned inside the build,
+        # so its checkout becomes the build context and the Dockerfile is
+        # named explicitly.
+        build_args = [str(context)]
+        if system.build_context_env:
+            configured = (os.environ.get(system.build_context_env)
+                          or system.build_context_default)
+            source = Path(configured).expanduser()
+            if not source.is_absolute():
+                source = (HERE.parent / source).resolve()
+            if not (source / "pyproject.toml").exists() and not source.is_dir():
+                log(f"{system.name}: no checkout at {source}. Set "
+                    f"{system.build_context_env} to where it is.")
+                failures.append(system.name)
+                continue
+            log(f"{system.name}: building from {source}")
+            build_args = ["-f", str(dockerfile), str(source)]
         logfile = work.logs / f"build-{system.name}.log"
         try:
             result = run(["docker", "build", "--progress=plain",
-                          "-t", system.tag, str(context)],
+                          "-t", system.tag] + build_args,
                          check=False, dry=args.dry_run, capture=True,
                          timeout=getattr(args, "build_timeout", 3600),
                          tee=None if args.dry_run else logfile)

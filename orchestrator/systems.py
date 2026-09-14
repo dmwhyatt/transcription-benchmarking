@@ -69,6 +69,11 @@ class System:
     # system which needs the network, or more shared memory, has to say so.
     docker_args: List[str] = field(default_factory=list)
     needs_network: bool = False
+    # For a system whose source is not publicly cloneable, the image is built
+    # with a local checkout as its build context. The env var is consulted
+    # first, then the default, which is relative to this repository's parent.
+    build_context_env: Optional[str] = None
+    build_context_default: Optional[str] = None
     # Rough built size in GB. Estimates, not measurements -- nothing here has
     # been built -- and only good enough to order the builds and warn before
     # the disk runs out mid-layer.
@@ -81,6 +86,22 @@ class System:
 
 SYSTEMS: List[System] = [
     # ---------------------------------------------------------------- ready
+    System(
+        name="transcpybe",
+        approx_gb=11.0,
+        title="transcPybe (this project's own transcriber)",
+        licence="private",
+        gpu=True,
+        checkpoint=Checkpoint(kind="in-image"),
+        build_context_env="TRANSCPYBE_SRC",
+        build_context_default="../transcpybe",
+        notes="The incumbent, and the reason the benchmark exists. Private, "
+              "so the image is built from a local checkout rather than a "
+              "clone -- set TRANSCPYBE_SRC or keep it at ../transcpybe. "
+              "Installed with its crepe extra, whose torchcrepe weights ship "
+              "in the wheel, so it still runs with no network. Batches the "
+              "corpus in one process where stems are unique.",
+    ),
     System(
         name="basic-pitch",
         approx_gb=1.5,
