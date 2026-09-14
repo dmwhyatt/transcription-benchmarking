@@ -33,6 +33,12 @@ CACHE = Path(os.environ.get("BENCH_CACHE", "/cache"))
 SUFFIXES = {".wav", ".flac", ".mp3", ".m4a", ".ogg", ".aif", ".aiff"}
 
 
+def find_model(root: Path, name: str):
+    """The <name>/model.pt under root, however deeply the archive nested it."""
+    hits = sorted(root.rglob(f"{name}/model.pt"))
+    return hits[0] if hits else None
+
+
 def item_name(relative: Path) -> str:
     return str(relative.with_suffix("")).replace("/", "__")
 
@@ -46,19 +52,29 @@ def main():
         return 2
 
     # ROSVOT derives its config path from the checkpoint's directory, so a
-    # missing checkpoint surfaces as "Wrong config path!" from deep inside
-    # set_hparams rather than as the missing download it is. Check here.
-    needed = [CKPT / "rosvot" / "model.pt", CKPT / "rosvot" / "config.yaml"]
-    missing = [str(path) for path in needed if not path.exists()]
-    if missing:
-        print("ROSVOT's weights are not mounted. Missing:", file=sys.stderr)
-        for path in missing:
-            print(f"  {path}", file=sys.stderr)
-        print("\nRun `bench.py fetch --only rosvot` for the instructions: the "
-              "download is a Google Drive zip that Drive rate-limits, so it "
-              "needs a human. Unzip it so that <ckpt>/rosvot/ and <ckpt>/rwbd/ "
-              "each hold a model.pt and its config.yaml.", file=sys.stderr)
+    # missing or misplaced checkpoint surfaces as "Wrong config path!" from
+    # deep inside set_hparams rather than as the layout problem it is.
+    #
+    # The zip expands to a checkpoints/ directory, and whether that lands at
+    # /ckpt or /ckpt/checkpoints depends on how it was unzipped. Rather than
+    # insist on one, look for the model at any depth: there is only one
+    # rosvot/model.pt in there either way.
+    rosvot_ckpt = find_model(CKPT, "rosvot")
+    if rosvot_ckpt is None:
+        print(f"No rosvot/model.pt anywhere under {CKPT}.", file=sys.stderr)
+        print("Contents:", file=sys.stderr)
+        for path in sorted(CKPT.rglob("*"))[:20]:
+            print(f"  {path.relative_to(CKPT)}", file=sys.stderr)
+        print("\nRun `bench.py fetch --only rosvot` for where to get it.",
+              file=sys.stderr)
         return 2
+    config = rosvot_ckpt.parent / "config.yaml"
+    if not config.exists():
+        print(f"Found {rosvot_ckpt} but no config.yaml beside it. ROSVOT reads "
+              "its hparams from there and asserts if it is absent.",
+              file=sys.stderr)
+        return 2
+    print(f"using checkpoint {rosvot_ckpt}", flush=True)
 
     by_item = {item_name(p.relative_to(AUDIO)): p.relative_to(AUDIO)
                for p in sources}
@@ -72,9 +88,9 @@ def main():
 
     argv = ["python3", "inference/rosvot.py",
             "--metadata", str(meta_path), "-o", str(produced_dir),
-            "--ckpt", str(CKPT / "rosvot" / "model.pt"), "--verbose"]
-    wbd = CKPT / "rwbd" / "model.pt"
-    if wbd.exists():
+            "--ckpt", str(rosvot_ckpt), "--verbose"]
+    wbd = find_model(CKPT, "rwbd")
+    if wbd is not None:
         argv += ["--apply_rwbd", "--wbd_ckpt", str(wbd)]
     else:
         print("WARNING: no rwbd checkpoint at /ckpt/rwbd/model.pt. Without it "

@@ -32,9 +32,30 @@ def main():
     if not sources:
         print("no audio under /audio", file=sys.stderr)
         return 2
-    if not Path(MODEL).exists():
-        print(f"no checkpoint at {MODEL}; see bench.py fetch", file=sys.stderr)
-        return 2
+    model = Path(MODEL)
+    if not model.exists():
+        # GAME's releases include an ONNX bundle, which its own README says is
+        # not runnable from this repository: "We don't provide implementation
+        # of ONNX model inference pipeline in this repository." infer.py wants
+        # a PyTorch checkpoint. Saying that is worth more than "not found".
+        found = sorted(list(CKPT.rglob("*.pt")) + list(CKPT.rglob("*.ckpt")))
+        if found:
+            model = found[0]
+            print(f"using checkpoint {model}", flush=True)
+        else:
+            onnx = sorted(CKPT.rglob("*.onnx"))
+            if onnx:
+                print(f"Found only ONNX models under {CKPT}:", file=sys.stderr)
+                for path in onnx[:8]:
+                    print(f"  {path.relative_to(CKPT)}", file=sys.stderr)
+                print("\nGAME does not ship an ONNX inference pipeline -- its "
+                      "README says so outright -- and infer.py takes a PyTorch "
+                      "checkpoint. Download the non-ONNX release asset "
+                      "instead.", file=sys.stderr)
+            else:
+                print(f"No .pt or .ckpt anywhere under {CKPT}; "
+                      "see bench.py fetch", file=sys.stderr)
+            return 2
 
     work = CACHE / "work"
     if work.exists():
@@ -49,7 +70,7 @@ def main():
     codes = []
     for extension in extensions:
         proc = subprocess.run(
-            ["python3", "infer.py", "extract", str(work), "-m", MODEL,
+            ["python3", "infer.py", "extract", str(work), "-m", str(model),
              "--glob", f"*{extension}", "--output-formats", "mid"],
             cwd="/app", capture_output=True, text=True)
         codes.append(proc.returncode)
@@ -72,7 +93,7 @@ def main():
                          "error": "no MIDI beside the copied input"})
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "adapter.json").write_text(json.dumps(
-        {"system": "game", "model": MODEL, "seconds": round(elapsed, 1),
+        {"system": "game", "model": str(model), "seconds": round(elapsed, 1),
          "exit_codes": codes, "items": rows}, indent=2))
     failed = [r for r in rows if r["status"] != "ok"]
     print(f"\n{len(rows) - len(failed)}/{len(rows)} transcribed in {elapsed:.0f}s")

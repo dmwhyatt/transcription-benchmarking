@@ -150,8 +150,9 @@ SYSTEMS: List[System] = [
                 "  1. open https://drive.google.com/file/d/"
                 "1JNtNT37KiLq9uFQqHk7JFs-3trxd3bRh/view\n"
                 "  2. download checkpoints.zip\n"
-                "  3. unzip it so that <ckpt-dir>/rosvot/model.pt, "
-                "<ckpt-dir>/rwbd/model.pt and <ckpt-dir>/rmvpe/ exist"),
+                "  3. unzip it into the directory below -- anywhere under it "
+                "is fine, the adapter looks for rosvot/model.pt at any depth, "
+                "so the zip's own checkpoints/ wrapper does not matter"),
         ),
         notes="The adapter passes --apply_rwbd and --verbose. Both are "
               "load-bearing and neither is obvious: without --verbose "
@@ -170,7 +171,10 @@ SYSTEMS: List[System] = [
             manual_hint=(
                 "GAME publishes weights on GitHub releases and discussions.\n"
                 "  1. see https://github.com/openvpi/GAME/releases\n"
-                "  2. put the .pt file at <ckpt-dir>/model.pt"),
+                "  2. take a PyTorch checkpoint (.pt or .ckpt), NOT the -onnx\n"
+                "     bundle: GAME's README says it ships no ONNX inference\n"
+                "     pipeline, so those files cannot be run by infer.py\n"
+                "  3. drop it anywhere under the directory below"),
         ),
         notes="Batch-transcribes a directory in one process, which makes it "
               "the cheapest of the singing-specific systems to run. Copies "
