@@ -41,13 +41,24 @@ RUN git clone --depth 1 https://github.com/york135/singing_transcription_ICASSP2
 RUN pip install --no-cache-dir "numpy<2" librosa soundfile tqdm mido ffmpeg-python \
     && if [ "$SPLEETER" = "1" ]; then pip install --no-cache-dir spleeter==1.5.4; fi
 
-# net/effnet.py does torch.hub.load('rwightman/gen-efficientnet-pytorch', ...).
-# Even with pretrained=False that clones the repository, so a container with
-# no network dies on name resolution. Cache it here and point TORCH_HOME at
-# the cache, so the lookup is a local hit at run time.
+# net/effnet.py does torch.hub.load('rwightman/gen-efficientnet-pytorch', ...)
+# and caching the repository is necessary but not sufficient.
+#
+# When the spec carries no ":ref", torch.hub works out the default branch by
+# fetching https://github.com/<owner>/<repo>/tree/main/ -- and it does that
+# BEFORE looking in the cache. So an offline container fails on name
+# resolution however warm the cache is. Pinning the ref in the source skips
+# that lookup entirely.
+#
+# trust_repo=True matters too: torch 1.13 prompts on an untrusted repo, and a
+# prompt in a container with no terminal is a hang. Warming it here writes the
+# trusted list alongside the cache.
 ENV TORCH_HOME=/opt/torchhub
-RUN mkdir -p /opt/torchhub \
-    && python3 -c "import torch; torch.hub.load('rwightman/gen-efficientnet-pytorch', 'efficientnet_b0', pretrained=False)" \
+RUN sed -i "s|'rwightman/gen-efficientnet-pytorch'|'rwightman/gen-efficientnet-pytorch:master'|g" \
+        /app/AST/net/effnet.py \
+    && grep -q "gen-efficientnet-pytorch:master" /app/AST/net/effnet.py \
+    && mkdir -p /opt/torchhub \
+    && python3 -c "import torch; torch.hub.load('rwightman/gen-efficientnet-pytorch:master', 'efficientnet_b0', pretrained=False, trust_repo=True)" \
     && chmod -R a+rX /opt/torchhub
 
 COPY adapter.py /adapter.py

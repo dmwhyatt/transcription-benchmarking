@@ -102,23 +102,26 @@ def main():
     proc = subprocess.run(argv, cwd="/app", capture_output=True, text=True)
     elapsed = time.time() - started
 
-    # ROSVOT prints a full hparams dump on every run, which is long enough to
-    # push the actual error out of any reasonable tail. Show the end of stderr
-    # first, then what it wrote, and only then the noise.
-    if proc.stderr.strip():
-        print("--- stderr ---", file=sys.stderr)
-        print(proc.stderr[-3000:], file=sys.stderr)
+    # ROSVOT prints a full hparams dump on every run, and only the last lines
+    # of this log are surfaced by the orchestrator. So the noise goes first
+    # and the diagnosis last -- the opposite of the obvious order, and the one
+    # that puts the answer where it will actually be read.
+    print("--- last of stdout (hparams dump lives here) ---")
+    print(proc.stdout[-800:])
     print(f"--- exit {proc.returncode}; files under {produced_dir} ---")
     if produced_dir.exists():
         written = sorted(produced_dir.rglob("*"))
-        for path in written[:20]:
+        for path in written[:15]:
             print(f"    {path.relative_to(produced_dir)}")
         if not written:
-            print("    (nothing)")
+            print("    (nothing was written)")
     else:
         print("    (directory was never created)")
-    print("--- last of stdout ---")
-    print(proc.stdout[-1500:])
+    if proc.stderr.strip():
+        print("--- stderr, last 2000 chars ---")
+        print(proc.stderr[-2000:])
+    else:
+        print("--- stderr was empty ---")
 
     rows = []
     for name, relative in by_item.items():

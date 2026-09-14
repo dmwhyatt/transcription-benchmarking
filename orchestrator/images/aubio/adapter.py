@@ -64,7 +64,7 @@ def main():
             row = {"item": str(relative), "status": "ok", "notes": len(notes)}
         else:
             row = {"item": str(relative), "status": "fail",
-                   "error": proc.stderr[-400:]}
+                   "error": proc.stderr[-3000:]}
         row["seconds"] = round(time.time() - started, 2)
         rows.append(row)
         print(f"{'ok  ' if row['status'] == 'ok' else 'FAIL'} {relative}", flush=True)

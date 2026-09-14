@@ -35,10 +35,16 @@ RUN git clone https://github.com/seyong92/phoneme-informed-note-level-singing-tr
     && cd /app && git checkout b2fcd9ea0f7898a8989c7e65781052d1ffc81094
 
 # torchaudio is NOT in the base image and infer.py imports it on line 5.
-# The version is pinned to match the base image's torch 1.13.1, as upstream's
-# pyproject does.
+#
+# It has to come from PyTorch's own cu116 index, not PyPI. PyPI's
+# torchaudio 0.13.1 is built against CUDA 11.7 and refuses to load beside a
+# CUDA 11.6 torch: "Detected that PyTorch and TorchAudio were compiled with
+# different CUDA versions." There is no 1.13.1-cuda11.7 image to move to --
+# pytorch/pytorch publishes only cuda11.6 for the whole 1.13 line.
+RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cu116 \
+        "torchaudio==0.13.1"
+
 RUN pip install --no-cache-dir \
-        "torchaudio==0.13.1" \
         "nnAudio==0.3.2" "mido>=1.2.10" "librosa==0.9.1" "numpy==1.23.4" \
         "wquantiles>=0.6" soundfile \
     && python3 -c "import torch, torchaudio; print('torch', torch.__version__, 'torchaudio', torchaudio.__version__)"

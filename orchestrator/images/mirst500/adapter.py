@@ -48,7 +48,7 @@ def main():
         row = {"item": str(relative), "status": "ok" if ok else "fail",
                "seconds": round(time.time() - started, 2)}
         if not ok:
-            row["error"] = (proc.stderr or proc.stdout)[-400:]
+            row["error"] = (proc.stderr or proc.stdout)[-3000:]
         rows.append(row)
         print(f"{'ok  ' if ok else 'FAIL'} {relative}", flush=True)
         if not ok and row.get("stderr", row.get("error")):

@@ -50,7 +50,7 @@ def main():
         ok = target.exists()
         rows.append({"item": str(relative), "status": "ok" if ok else "fail",
                      "seconds": round(time.time() - started, 2),
-                     "stderr": "" if ok else proc.stderr[-400:]})
+                     "stderr": "" if ok else proc.stderr[-3000:]})
         print(f"{'ok  ' if ok else 'FAIL'} {relative}", flush=True)
         if not ok and row.get("stderr", row.get("error")):
             for line in str(row.get("stderr") or row.get("error")).strip().splitlines()[-8:]:
