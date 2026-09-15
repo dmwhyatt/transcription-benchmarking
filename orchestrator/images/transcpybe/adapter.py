@@ -47,13 +47,25 @@ def run_batch(paths):
     if scratch.exists():
         shutil.rmtree(scratch)
     scratch.mkdir(parents=True)
+    argv = base_argv() + [str(AUDIO), "-o", str(scratch), "--overwrite"]
+    print("running:", " ".join(argv), flush=True)
     started = time.time()
-    proc = subprocess.run(base_argv() + [str(AUDIO), "-o", str(scratch), "--overwrite"],
-                          capture_output=True, text=True)
-    print(proc.stdout[-2000:])
-    if proc.returncode != 0:
-        print(proc.stderr[-2000:], file=sys.stderr)
+    # merged, because a failure whose cause is in stderr while the progress
+    # is in stdout is unreadable split in two
+    proc = subprocess.run(argv, stdout=subprocess.PIPE,
+                          stderr=subprocess.STDOUT, text=True)
     produced = {p.stem: p for p in scratch.rglob("*.mid")}
+
+    # If the batch process itself failed there is one cause, not forty. Say it
+    # and stop, rather than emitting forty identical FAIL lines that push the
+    # cause out of the tail anyone will actually read.
+    if proc.returncode != 0 or not produced:
+        print(f"\ntranscpybe exited {proc.returncode} and produced "
+              f"{len(produced)} MIDI files. Its output:\n", file=sys.stderr)
+        print(proc.stdout[-4000:], file=sys.stderr)
+        rows = [{"item": str(p.relative_to(AUDIO)), "status": "fail",
+                 "error": f"batch run exited {proc.returncode}"} for p in paths]
+        return rows, time.time() - started, "batch"
 
     rows = []
     for source in paths:
@@ -69,6 +81,13 @@ def run_batch(paths):
                          "error": "no MIDI with this stem in the batch output"})
         print(f"{'ok  ' if rows[-1]['status'] == 'ok' else 'FAIL'} {relative}",
               flush=True)
+    missing = [r for r in rows if r["status"] != "ok"]
+    if missing:
+        # Some items transcribed and some did not, so the batch output is
+        # worth seeing -- last, where the tail will carry it.
+        print(f"\n{len(missing)} of {len(rows)} produced no MIDI. "
+              f"transcpybe's output:\n", file=sys.stderr)
+        print(proc.stdout[-3000:], file=sys.stderr)
     return rows, time.time() - started, "batch"
 
 
