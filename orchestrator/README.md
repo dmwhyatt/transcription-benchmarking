@@ -26,29 +26,137 @@ Nothing here is installed with the package: `pyproject.toml` packages `src/`
 only. The benchmark does not import this, this does not import the benchmark,
 and neither imports a transcriber.
 
-## What has actually been run, and what has not
+## Starting from nothing
 
-Being direct about this, because the distinction is the difference between a
-tool and a plan.
+On a machine that has none of this. About two hours, most of it unattended.
 
-**Verified end to end, outside Docker.** The `basic-pitch`, `essentia` and
-`aubio` adapters were run against a nested corpus that reproduces the
-stem-collision case, and their output was scored through the real
-`transcription-benchmark` CLI. Basic Pitch and Essentia scored 1.000 on a
-synthetic phrase; aubio scored COnP 0.182, having merged a legato run into one
-note. That is the whole chain -- adapter, naming, pairing, metrics -- working.
+**1. The machine.** Docker, the NVIDIA Container Toolkit, and a driver new
+enough for CUDA 12 (`nvidia-smi` prints its maximum top right; 12.x covers
+every image here). About 35 GB of disk for the images, plus room for the
+corpus. A GPU with 10 GB is enough -- but see the note on contention below,
+because a shared card is the one failure that looks like a bug in a model.
 
-**Not run at all: every Docker image in this directory.** The environment they
-were written in had no Docker daemon, so not one has been built. The Python
-inside them is exercised; the layers around it are not. Expect the first build
-of each to need work, and run `transcribe --limit 2` before committing a whole
-corpus to any of them.
+**2. The repositories.**
 
-The install recipes are not guesses, though. Each was derived by hitting the
-failures in a clean venv and recording what got past them -- the `crepe-notes`
-Dockerfile in particular encodes five separate blockers, the last of which
-(`numpy>=2.0` breaking madmom's compiled extensions) was confirmed and its fix
-verified by import.
+```shell
+git clone https://github.com/dmwhyatt/transcription-benchmarking
+git clone https://github.com/dmwhyatt/transcpybe          # private; needs your access
+cd transcription-benchmarking
+python -m venv .venv && . .venv/bin/activate
+pip install -e .                      # provides transcription-benchmark, used by `score`
+```
+
+**3. The corpus.** vocadito is not redistributed here. Download it from
+[Zenodo](https://zenodo.org/records/5578807) and unpack it, giving an `Audio/`
+directory of 40 wav files and an `Annotations/` directory beside it. Then look
+before trusting it:
+
+```shell
+transcription-benchmark --inspect /path/to/vocadito/Annotations
+transcription-benchmark /path/to/vocadito/Audio -a /path/to/vocadito/Annotations --dry-run
+```
+
+vocadito ships two annotator versions per recording plus f0 contours, and the
+loader picks the note-level one by filename hints. The dry run says which file
+it paired with each recording; read that line rather than skipping it.
+
+**4. Check the machine before anything slow.**
+
+```shell
+cd orchestrator
+export TRANSCPYBE_SRC=~/transcpybe
+./bench.py doctor
+```
+
+It verifies docker, the GPU, `--gpus all` inside a container, the benchmark on
+PATH, free disk against the images' sizes, and every Dockerfile's base image
+tag against the registry. A wrong base tag otherwise costs a long build before
+it fails.
+
+**5. Build.** If disk is tight, `doctor` prints a wave plan; otherwise:
+
+```shell
+./bench.py build --prune
+```
+
+Roughly 35 GB and half an hour. `--prune` clears BuildKit's cache between
+images, which is what runs a nearly-full disk out mid-layer.
+
+**6. Checkpoints.**
+
+```shell
+./bench.py fetch
+```
+
+Everything downloads itself except ROSVOT, whose weights are a Google Drive zip
+that Drive rate-limits. `fetch` prints the link and the directory; unzip it
+anywhere under that directory and the adapter will find the models at any
+depth.
+
+**7. A smoke run before the corpus.**
+
+```shell
+./bench.py transcribe --audio /path/to/vocadito/ --limit 2
+```
+
+Two recordings through all ten systems, about four minutes. Every system that
+is going to fail fails here for the price of a coffee rather than an hour.
+
+**8. The real run, and the scores.**
+
+```shell
+./bench.py transcribe --audio /path/to/vocadito/
+./bench.py score --audio /path/to/vocadito/Audio -a /path/to/vocadito/Annotations
+./bench.py table
+./bench.py compare
+```
+
+About 70 minutes, of which omnizart is 39.
+
+**9. The transcPybe versions.** Pin them by commit, not by branch: branches
+move, and `docs/transcpybe-v1.md` reports a specific commit.
+
+```shell
+for v in v1:6fe3e12 v2:fc9a9df v3:70b4df2; do
+  label=transcpybe-${v%%:*}; rev=${v##*:}
+  ./bench.py --only transcpybe --as "$label" --rev "$rev" build --prune
+  ./bench.py --only transcpybe --as "$label" transcribe --audio /path/to/vocadito/
+done
+./bench.py score --audio /path/to/vocadito/Audio -a /path/to/vocadito/Annotations
+./bench.py table
+./bench.py compare
+```
+
+`--rev` builds each in a detached worktree, so the checkout never has to be
+switched and the build cannot quietly measure whichever branch it was left on.
+Each build prints the commit it resolved; check it.
+
+**Before a long run on a shared machine, look at the card.** A CUDA OOM
+reported by a model is usually somebody else's job holding the memory --
+`nvidia-smi` names the process. `transcribe` now prints free and total GPU
+memory before each GPU system for this reason.
+
+## What has been run
+
+**The full sweep, on vocadito, 14 September 2026.** Ten systems over forty
+recordings. `docs/transcpybe-v1.md` has the result and what it does and does
+not support. Two figures reproduced numbers obtained by hand through a
+different path -- transcPybe 0.591 against 0.589, ROSVOT 0.262 against 0.262 --
+which is the evidence that the orchestration is not moving the measurement.
+
+**Every image here has been built and run at least once**, which was not true
+when they were written: all nine of the original Dockerfiles were written in an
+environment with no Docker daemon. Getting them green took roughly a dozen
+rounds, and the failures are worth knowing because most were environmental
+rather than the systems' fault: tzdata prompting for a geographic area and
+hanging a build, a 64 MB `/dev/shm` killing a PyTorch DataLoader, images
+reaching for the network at run time under `--network none`, checkpoints in
+layouts the adapters did not expect, and GPU contention reported as a model
+error. Each is now either fixed in the Dockerfile or reported clearly enough to
+act on.
+
+**What is still unproven:** the systems marked `planned` in `systems.py` have
+no image, and the two marked `blocked` name what stops them.
 
 ## The contract
 
