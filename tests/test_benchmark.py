@@ -1919,3 +1919,57 @@ def test_agreement_without_an_output_writes_nothing(tmp_path):
 
     assert annotator_agreement(tmp_path, "notesA1", "notesA2") == 0
     assert list(tmp_path.glob("*.json")) == []
+
+
+def test_mirrored_trees_pair_by_relative_path(tmp_path):
+    """A staged subset scored against the corpus it was drawn from.
+
+    M4Singer numbers segments inside a directory per song, so every song has a
+    0000. When the audio has been staged into its own tree -- which is what
+    sampling a large corpus produces -- the annotation still sits in the
+    original tree under the same relative path, and that path is the only thing
+    that distinguishes one song's 0000 from another's.
+    """
+    from transcription_benchmarking.dataset import pair_dataset
+
+    corpus = tmp_path / "m4singer"
+    staged = tmp_path / "staging"
+    for song, pitch in (("Alto-1#a", 60), ("Alto-2#b", 67), ("Tenor-1#c", 55)):
+        (corpus / song).mkdir(parents=True)
+        (corpus / song / "0000.csv").write_text(f"0.5,1.0,{pitch}\n")
+        (staged / song).mkdir(parents=True)
+        (staged / song / "0000.wav").write_bytes(b"")
+
+    pairing = pair_dataset(staged, corpus)
+
+    assert len(pairing.items) == 3, "every staged segment should pair"
+    assert not pairing.unpaired_audio
+    # Each must get its OWN song's annotation, which is the thing a bare-stem
+    # match cannot do: it would hand all three the first song's notes.
+    for item in pairing.items:
+        assert item.annotation.parent.name == item.audio.parent.name
+        assert item.match == "exact"
+
+
+def test_colliding_stems_in_mirrored_trees_still_refuse_when_paths_differ(tmp_path):
+    """The relative-path tier must not become a new way to guess.
+
+    If the trees do not mirror each other, the stems still collide and there is
+    still no basis for choosing -- so this must refuse exactly as before rather
+    than pairing on the strength of a shared filename.
+    """
+    from transcription_benchmarking.dataset import pair_dataset
+
+    corpus = tmp_path / "notes"
+    staged = tmp_path / "audio"
+    for song in ("songA", "songB"):
+        (corpus / song).mkdir(parents=True)
+        (corpus / song / "0000.csv").write_text("0.5,1.0,60\n")
+    # Audio laid out differently: no relative path matches an annotation's.
+    (staged / "elsewhere").mkdir(parents=True)
+    (staged / "elsewhere" / "0000.wav").write_bytes(b"")
+
+    pairing = pair_dataset(staged, corpus)
+
+    assert not pairing.items, "two candidate annotations, no basis to choose"
+    assert len(pairing.unpaired_audio) == 1
