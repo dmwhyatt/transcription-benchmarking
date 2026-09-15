@@ -278,16 +278,34 @@ SYSTEMS: List[System] = [
                  "needs none of requirements.txt's fairseq, gradio or onnx, "
                  "which is what makes it installable at all."),
     System(name="ctc-ce", title="CTC_CE_for_AST (Wang and Jang, TASLP 2022)",
-           licence="none stated", gpu=True, status=PLANNED,
-           checkpoint=Checkpoint(kind="manual",
-                                 manual_hint="Checkpoints and configs are on Google Drive; "
-                                             "see the repository README."),
+           licence="MIT", gpu=True, cpu_ok=True,
+           status=READY, tested=False, approx_gb=6.0,
+           checkpoint=Checkpoint(
+               kind="manual",
+               manual_hint="Checkpoints and configs: "
+                           "drive.google.com/drive/folders/"
+                           "1lxq-IF83cEXE8XsTFywNJhwtDSRXWqRx . Take a "
+                           "checkpoint AND the config yaml that belongs to "
+                           "it, and put each pair in its own directory under "
+                           "ckpt/ctc-ce. They are not interchangeable: the "
+                           "onset and offset thresholds are tuned per "
+                           "checkpoint and live in the config, so a "
+                           "mismatched pair runs at the wrong operating "
+                           "point and still succeeds. The same folder holds "
+                           "MIR-ST500_corrected_0514_+30ms.json, the shifted "
+                           "labels."),
            notes="york135's follow-up to the MIR-ST500 baseline, adding a CTC "
-                 "loss to cross-entropy. Same do_everything.py interface as "
-                 "mirst500, so that image is most of this one. Worth running "
-                 "for its own sake and for its labels: it ships MIR-ST500 "
-                 "annotations shifted by +30 ms, which is independent "
-                 "evidence about that corpus rather than about the model."),
+                 "loss to cross-entropy. Worth running for its own sake and "
+                 "for its labels: it ships MIR-ST500 annotations shifted by "
+                 "+30 ms, which is independent evidence about that corpus "
+                 "rather than about the model. Its requirements.txt lists "
+                 "spleeter, omnizart and madmom; none is imported anywhere "
+                 "the inference path reaches, so the image installs none of "
+                 "them. The adapter forces do_svs off -- this corpus is "
+                 "isolated vocal, and the authors did the same for ISMIR2014 "
+                 "-- and tomidi on, since with it off no MIDI is written and "
+                 "nothing errors. Written from upstream source, never "
+                 "built."),
     System(name="keums", title="Kum et al. teacher-student (ICASSP 2022)",
            licence="none stated", gpu=False, cpu_ok=True,
            status=READY, tested=False, approx_gb=2.5,
