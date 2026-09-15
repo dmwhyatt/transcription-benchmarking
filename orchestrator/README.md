@@ -69,9 +69,8 @@ export TRANSCPYBE_SRC=~/transcpybe
 ```
 
 It verifies docker, the GPU, whether a container can reach it (trying both
-`--gpus all` and the CDI device), the benchmark on
-PATH, free disk against the images' sizes, and every Dockerfile's base image
-tag against the registry. A wrong base tag otherwise costs a long build before
+`--gpus all` and the CDI device), the benchmark on PATH, free disk against the
+images' sizes, and every Dockerfile's base image tag against the registry. A wrong base tag otherwise costs a long build before
 it fails.
 
 **5. Build.** If disk is tight, `doctor` prints a wave plan; otherwise:
