@@ -36,7 +36,16 @@ RUN pip install --no-cache-dir \
         "librosa==0.8.1" \
         "pydub==0.25.1" \
         "pretty-midi==0.2.9" \
-        "mir_eval==0.6"
+        "mir_eval==0.6" \
+        "matplotlib==3.5.3"
+
+# matplotlib is not librosa's dependency -- it belongs to the [display] extra --
+# but quantization.py and MIDI.py both import librosa.display, so this code
+# needs it and nothing declares it. Pinned rather than free: librosa 0.8.1's
+# display module does `from matplotlib.cm import get_cmap`, which matplotlib
+# removed in 3.9, so an unpinned install resolves to a version that cannot
+# import. 3.5.3 is the last line that supports python 3.9 and leaves
+# numpy 1.19.5 alone.
 
 # No pin available offline -- override with --build-arg KEUMS_REV=<sha> once a
 # build is known good. The commit actually used is recorded in adapter.json
@@ -48,6 +57,8 @@ RUN git clone https://github.com/keums/icassp2022-vocal-transcription /app \
     && test -s /app/data/weight_ST.hdf5
 
 COPY adapter.py /adapter.py
+# MPLBACKEND because quantization.py imports pyplot and there is no display
+# here; without it matplotlib picks an interactive backend and fails.
 ENV HOME=/cache MPLCONFIGDIR=/cache NUMBA_CACHE_DIR=/cache \
-    TF_CPP_MIN_LOG_LEVEL=2 PYTHONPATH=/app/src
+    MPLBACKEND=Agg TF_CPP_MIN_LOG_LEVEL=2 PYTHONPATH=/app/src
 ENTRYPOINT ["python3", "/adapter.py"]
