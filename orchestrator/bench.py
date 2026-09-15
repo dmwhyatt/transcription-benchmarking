@@ -193,7 +193,14 @@ def cmd_doctor(args) -> int:
             ["docker", "run", "--rm", "--gpus", "all", "ubuntu:22.04", "true"],
             capture_output=True, text=True)
         check("docker --gpus all works", gpu_probe.returncode == 0,
-              gpu_probe.stderr.strip().splitlines()[-1][:90] if gpu_probe.returncode else "")
+              docker_error(gpu_probe.stderr))
+        if gpu_probe.returncode != 0:
+            print("         The GPU images cannot run without this. If the "
+                  "message mentions a device driver or")
+            print("         nvidia-container-runtime, the NVIDIA Container "
+                  "Toolkit is missing or unconfigured:")
+            print("           sudo nvidia-ctk runtime configure "
+                  "--runtime=docker && sudo systemctl restart docker")
 
     print("\nbenchmark")
     bench = shutil.which("transcription-benchmark")
@@ -626,6 +633,19 @@ def transcribe_one(system, audio_dir: Path, expected: int, work: Work, args) -> 
     (out / "run.json").write_text(json.dumps(record, indent=2))
     log(f"{label}: {status}, {len(written)} midi, {elapsed:.0f}s")
     return record
+
+
+def docker_error(stderr: str) -> str:
+    """The line of a docker failure that says what went wrong.
+
+    Not the last line: the CLI ends with "Run 'docker run --help' for more
+    information", so taking the tail reports the trailer and hides the cause.
+    """
+    lines = [line.strip() for line in stderr.strip().splitlines() if line.strip()]
+    for line in lines:
+        if "error" in line.lower() or "denied" in line.lower():
+            return line[:160]
+    return lines[0][:160] if lines else ""
 
 
 def gpu_memory():
