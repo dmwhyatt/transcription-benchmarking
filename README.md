@@ -185,6 +185,10 @@ with each other about the same recording.
 transcription-benchmark vocadito/annotations --agreement notesA1 notesA2
 ```
 
+Add `-o ceiling.json` to save it. That turns the ceiling into something the
+rest of the tooling can divide by rather than a number to be copied by hand
+-- the orchestrator's `table --percent` reads exactly this file.
+
 Measured on vocadito, that ceiling is COn 0.817 / COnP 0.740 / COnPOff 0.642.
 It changes what a score means: a system scoring COnP 0.589 there is at about
 80% of what these annotations can support, which is a different claim from

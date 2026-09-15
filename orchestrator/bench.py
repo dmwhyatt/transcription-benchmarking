@@ -784,6 +784,40 @@ def cmd_compare(args) -> int:
     return 0
 
 
+def load_ceiling(work: "Work", explicit: Optional[str]) -> Optional[Dict]:
+    """The human agreement a percentage is taken against.
+
+    Deliberately not a constant. vocadito's ceiling is COnPOff 0.642, and
+    hardcoding that would make `--percent` quietly wrong the first time this
+    runs on another corpus -- the failure mode being a plausible number rather
+    than an error. So it is measured, saved, and read back.
+    """
+    path = Path(explicit) if explicit else work.results / "ceiling.json"
+    if not path.exists():
+        log(f"no ceiling at {path}. --percent needs one measured on this "
+            "corpus; make it with")
+        log("  ./bench.py ceiling -a /path/to/vocadito/Annotations")
+        log("which scores one annotator against the other through the same "
+            "metrics the systems get.")
+        return None
+    data = json.loads(path.read_text())
+    if not data.get("ceiling"):
+        log(f"{path} is not a ceiling result (no annotator agreement in it)")
+        return None
+    return data
+
+
+def cmd_ceiling(args) -> int:
+    """Measure the corpus's own ceiling and save it for `table --percent`."""
+    work = Work(Path(args.work))
+    work.results.mkdir(parents=True, exist_ok=True)
+    target = work.results / "ceiling.json"
+    argv = ["transcription-benchmark", args.annotations,
+            "--agreement", args.tag_a, args.tag_b, "-o", str(target)]
+    result = run(argv, check=False, dry=args.dry_run)
+    return result.returncode if not args.dry_run else 0
+
+
 def cmd_table(args) -> int:
     """One table across every scored system, which is the point of the sweep.
 
@@ -802,6 +836,9 @@ def cmd_table(args) -> int:
             aggregate = data["aggregate"]
         except (ValueError, KeyError):
             log(f"skipping {path.name}: not a benchmark result")
+            continue
+        # The ceiling lives alongside the runs and is not one of them.
+        if data.get("ceiling"):
             continue
         macro = aggregate["macro"]
         rows.append({
@@ -827,28 +864,62 @@ def cmd_table(args) -> int:
         for entry in json.loads(summary.read_text()):
             timings[entry.get("system")] = entry.get("seconds")
 
+    ceiling = None
+    if args.percent:
+        ceiling = load_ceiling(work, args.ceiling)
+        if ceiling is None:
+            return 1
+        ceiling_macro = ceiling["aggregate"]["macro"]
+        n_ceiling = ceiling["aggregate"]["n_items"]
+        if n_ceiling != rows[0]["items"]:
+            log(f"warning: the ceiling was measured on {n_ceiling} recordings "
+                f"and these runs cover {rows[0]['items']}. The percentages "
+                "compare different sets of recordings.")
+
     def cell(interval):
         return (f"{interval['mean']:.3f} "
                 f"[{interval['low']:.3f}-{interval['high']:.3f}]")
 
+    def pct(interval, key):
+        """A score as a share of what two humans manage on the same corpus.
+
+        The ceiling has its own bootstrap interval, which this does not
+        propagate -- the division is by its point estimate. So read these as
+        the position of a score between 0 and human, not as an interval that
+        accounts for how well the ceiling itself is pinned down.
+        """
+        top = ceiling_macro[key]["mean"]
+        if not top:
+            return "--"
+        return (f"{interval['mean'] / top * 100:.0f}% "
+                f"[{interval['low'] / top * 100:.0f}-"
+                f"{interval['high'] / top * 100:.0f}]")
+
+    def show(r, key, metric):
+        return pct(r[key], metric) if ceiling else cell(r[key])
+
     if args.markdown:
-        print("| system | items | COn F | COnP F | COnPOff F | octave err | "
-              "median offset | transcribe |")
+        unit = "% of human" if ceiling else "F"
+        print(f"| system | items | COn {unit} | COnP {unit} | COnPOff {unit} | "
+              "octave err | median offset | transcribe |")
         print("|---|---:|---|---|---|---:|---:|---:|")
         for r in rows:
             seconds = timings.get(r["system"])
-            print(f"| {r['system']} | {r['items']} | {cell(r['con'])} | "
-                  f"{cell(r['conp'])} | {cell(r['conpoff'])} | "
+            print(f"| {r['system']} | {r['items']} | {show(r, 'con', 'con_f')} | "
+                  f"{show(r, 'conp', 'conp_f')} | "
+                  f"{show(r, 'conpoff', 'conpoff_f')} | "
                   f"{r['octave_error_rate'] * 100:.1f}% | "
                   f"{r['median_best_offset_s']:+.3f}s | "
                   f"{(str(int(seconds)) + 's') if seconds else '--'} |")
     else:
-        print(f"\n{'system':<18}{'COn F':>22}{'COnP F':>22}{'COnPOff F':>22}"
-              f"{'oct':>7}{'offset':>9}")
+        unit = "% human" if ceiling else "F"
+        print(f"\n{'system':<18}{'COn ' + unit:>22}{'COnP ' + unit:>22}"
+              f"{'COnPOff ' + unit:>22}{'oct':>7}{'offset':>9}")
         print("-" * 100)
         for r in rows:
-            print(f"{r['system']:<18}{cell(r['con']):>22}{cell(r['conp']):>22}"
-                  f"{cell(r['conpoff']):>22}"
+            print(f"{r['system']:<18}{show(r, 'con', 'con_f'):>22}"
+                  f"{show(r, 'conp', 'conp_f'):>22}"
+                  f"{show(r, 'conpoff', 'conpoff_f'):>22}"
                   f"{r['octave_error_rate'] * 100:>6.1f}%"
                   f"{r['median_best_offset_s']:>+9.3f}")
         print("-" * 100)
@@ -859,10 +930,26 @@ def cmd_table(args) -> int:
               "this wide\noverlap freely. Use `compare` for any claim that one "
               "system beats another --\nit bootstraps the paired difference, "
               "which is the question being asked.")
-        print("\nRead against the ceiling. Two annotators agree at COnP 0.740 "
-              "on vocadito,\nso a system there is at the limit of what those "
-              "references can show, and one\nfar above it has a scoring fault "
-              "rather than a remarkable model.")
+        if ceiling:
+            tags = " vs ".join(ceiling["annotators"])
+            print(f"\n100% is human agreement on this corpus ({tags}, "
+                  f"{n_ceiling} recordings):")
+            print("  " + "  ".join(
+                f"{name} {ceiling_macro[key]['mean']:.3f}"
+                for name, key in (("COn", "con_f"), ("COnP", "conp_f"),
+                                  ("COnPOff", "conpoff_f"))))
+            print("The division is by those point estimates, so the brackets "
+                  "carry each system's\nuncertainty but not the ceiling's. "
+                  "Above 100% means disagreeing with the\nreference less than "
+                  "its two annotators disagree with each other, which on this\n"
+                  "corpus would be a scoring fault rather than a remarkable "
+                  "model.")
+        else:
+            print("\nRead against the ceiling. Two annotators agree at COnP "
+                  "0.740 on vocadito,\nso a system there is at the limit of "
+                  "what those references can show, and one\nfar above it has a "
+                  "scoring fault rather than a remarkable model.")
+            print("`table --percent` prints the whole table that way.")
 
     (work.results / "table.json").write_text(json.dumps(rows, indent=2))
     return 0
@@ -969,6 +1056,24 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     table = sub.add_parser("table", help="one table across every scored system")
     table.add_argument("--markdown", action="store_true",
                        help="emit a markdown table, for pasting into docs/")
+    table.add_argument("--percent", action="store_true",
+                       help="show each score as a percentage of human "
+                            "agreement on this corpus instead of a raw F. "
+                            "Needs a ceiling: `ceiling` measures one.")
+    table.add_argument("--ceiling", default=None, metavar="PATH",
+                       help="ceiling result to divide by "
+                            "(default: <work>/results/ceiling.json)")
+
+    ceiling = sub.add_parser(
+        "ceiling", help="measure human agreement on the corpus, for --percent")
+    ceiling.add_argument("-a", "--annotations", required=True,
+                         help="the annotations directory, which must hold two "
+                              "annotators per recording")
+    ceiling.add_argument("--tag-a", default="notesA1", metavar="TAG",
+                         help="first annotator's filename tag (default "
+                              "notesA1, which is vocadito's)")
+    ceiling.add_argument("--tag-b", default="notesA2", metavar="TAG",
+                         help="second annotator's tag (default notesA2)")
 
     sub.add_parser("compare", help="paired comparison of every pair")
 
@@ -997,6 +1102,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         "doctor": cmd_doctor, "build": cmd_build, "fetch": cmd_fetch,
         "transcribe": cmd_transcribe, "score": cmd_score,
         "compare": cmd_compare, "table": cmd_table, "all": cmd_all,
+        "ceiling": cmd_ceiling,
     }[args.command](args)
 
 

@@ -108,7 +108,8 @@ def breakdown_by_metadata(items_a, items_b, spec: str, label_a: str, label_b: st
 
 
 
-def annotator_agreement(annotation_dir: Path, tag_a: str, tag_b: str) -> int:
+def annotator_agreement(annotation_dir: Path, tag_a: str, tag_b: str,
+                        output: Optional[Path] = None) -> int:
     """Score annotator B against annotator A, using the benchmark's own metrics.
 
     Running the same machinery over two human annotations does two jobs at once:
@@ -158,6 +159,25 @@ def annotator_agreement(annotation_dir: Path, tag_a: str, tag_b: str) -> int:
         "disagree with each other, and the remaining gap is mostly a question\n"
         "about what counts as a note rather than an error the model can fix."
     )
+
+    if output:
+        # Saved so a percentage-of-human figure can be computed against a
+        # ceiling measured on the corpus in hand, rather than against a number
+        # copied from a paper -- which would silently be wrong the first time
+        # anyone points this at a different dataset.
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(json.dumps({
+            "ceiling": True,
+            "annotators": [tag_a, tag_b],
+            "annotation_dir": str(annotation_dir),
+            "aggregate": {
+                "n_items": aggregate.n_items,
+                "n_reference_notes": aggregate.n_reference_notes,
+                "macro": {k: {"mean": v.mean, "low": v.low, "high": v.high}
+                          for k, v in aggregate.macro.items()},
+            },
+        }, indent=2))
+        print(f"\nCeiling written to {output}")
     return 0
 
 

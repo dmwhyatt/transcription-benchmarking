@@ -323,6 +323,26 @@ comparing separate intervals counts it twice. Nine systems is thirty-six pairs,
 and at 95% intervals about one pair in twenty will separate two systems that
 are level.
 
+`table --percent` prints the whole table as a share of that ceiling instead of
+raw F, which is usually the more honest way to read it -- COnPOff 0.424 sounds
+poor and is 66% of what two humans manage. It needs the ceiling measured on
+whatever corpus is being scored:
+
+```shell
+./bench.py ceiling -a ~/vocadito/Annotations     # writes results/ceiling.json
+./bench.py table --percent --markdown
+```
+
+The ceiling is measured rather than hardcoded on purpose: vocadito's COnPOff
+0.642 would quietly become the wrong denominator the first time this runs on
+another corpus, and a plausible wrong number is worse than an error. Without
+`results/ceiling.json`, `--percent` says how to make one rather than guessing.
+`--tag-a`/`--tag-b` set the annotator filename tags, defaulting to vocadito's
+`notesA1`/`notesA2`.
+
+The percentages divide by the ceiling's point estimate, so the brackets carry
+each system's uncertainty and not the ceiling's own.
+
 Read every number against the ceiling. On vocadito two annotators agree at
 COnP 0.740, so a system at 0.59 is at 80% of what those annotations can
 support, and anything reported far above 0.74 is a scoring fault rather than a

@@ -1869,3 +1869,53 @@ def test_something_registered_that_cannot_transcribe_is_rejected_at_load(monkeyp
 
     with pytest.raises(TypeError, match="transcribe"):
         transcribers.load("bad")
+
+
+def test_agreement_saves_a_ceiling_that_is_not_mistakable_for_a_run(tmp_path):
+    """--percent divides by this file, so its shape is load-bearing.
+
+    Two things have to hold. The macro intervals must be there under the keys
+    a scored run uses, so the same reader works on both. And it must be
+    identifiable as a ceiling, because it is written into the results
+    directory the table globs -- without the marker the ceiling would appear
+    as a system, scoring 100% of itself.
+    """
+    import json
+
+    from transcription_benchmarking.compare import annotator_agreement
+
+    for song in range(4):
+        # B agrees on onset and pitch, and ends every note 300ms late, which
+        # is outside the offset tolerance and inside the onset one.
+        (tmp_path / f"vocadito_{song}_notesA1.csv").write_text(
+            "0.5,1.0,60\n1.5,2.0,62\n2.5,3.0,64\n")
+        (tmp_path / f"vocadito_{song}_notesA2.csv").write_text(
+            "0.5,1.3,60\n1.5,2.3,62\n2.5,3.3,64\n")
+
+    target = tmp_path / "results" / "ceiling.json"
+    assert annotator_agreement(tmp_path, "notesA1", "notesA2", output=target) == 0
+
+    saved = json.loads(target.read_text())
+    assert saved["ceiling"] is True
+    assert saved["annotators"] == ["notesA1", "notesA2"]
+    assert saved["aggregate"]["n_items"] == 4
+    macro = saved["aggregate"]["macro"]
+    for key in ("con_f", "conp_f", "conpoff_f"):
+        assert set(macro[key]) >= {"mean", "low", "high"}
+    # The offsets are all 300ms out, so onset and pitch agree perfectly and
+    # the offset metric does not -- a ceiling whose three numbers were equal
+    # would mean the offset tolerance was not being applied.
+    assert macro["conp_f"]["mean"] == 1.0
+    assert macro["conpoff_f"]["mean"] == 0.0
+
+
+def test_agreement_without_an_output_writes_nothing(tmp_path):
+    """The saving is opt-in: the printed report is still the common case."""
+    from transcription_benchmarking.compare import annotator_agreement
+
+    for song in range(2):
+        for tag in ("notesA1", "notesA2"):
+            (tmp_path / f"vocadito_{song}_{tag}.csv").write_text("0.5,1.0,60\n")
+
+    assert annotator_agreement(tmp_path, "notesA1", "notesA2") == 0
+    assert list(tmp_path.glob("*.json")) == []

@@ -213,7 +213,8 @@ def main(argv=None) -> int:
 
     # Agreement needs only the annotations, so it runs before pairing with audio.
     if args.agreement:
-        return annotator_agreement(annotation_dir or audio_dir, *args.agreement)
+        return annotator_agreement(annotation_dir or audio_dir, *args.agreement,
+                                   output=Path(args.output) if args.output else None)
 
     if args.annotations_json:
         import tempfile
