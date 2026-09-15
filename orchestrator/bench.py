@@ -31,6 +31,7 @@ import argparse
 import datetime as dt
 import json
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -526,7 +527,11 @@ def transcribe_one(system, audio_dir: Path, expected: int, work: Work, args) -> 
     if adapter.exists():
         argv += ["-v", f"{adapter}:/adapter.py:ro"]
     if system.gpu and not args.no_gpu:
-        argv += ["--gpus", "all"]
+        # "--gpus all" is the usual spelling, but docker 29 routes it through
+        # CDI, and a machine whose CDI spec is generated but whose --gpus path
+        # still refuses will take "--device nvidia.com/gpu=all" instead. One
+        # string rather than a hardcoded pair, so neither needs a code change.
+        argv += shlex.split(args.gpu_args)
     # Docker gives a container 64 MB of /dev/shm, and a PyTorch DataLoader with
     # workers uses shared memory to hand tensors back to the parent. When it
     # runs out the worker dies on SIGBUS and the traceback blames whichever
@@ -893,6 +898,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     trans.add_argument("--timeout", type=int, default=60 * 60 * 6,
                        help="per-system wall clock limit, seconds")
     trans.add_argument("--no-gpu", action="store_true")
+    trans.add_argument("--gpu-args", default="--gpus all",
+                       help="how to give a container the GPU (default "
+                            "'--gpus all'). On docker 29 with CDI, "
+                            "'--device nvidia.com/gpu=all' is the alternative.")
     trans.add_argument("--fresh", action="store_true",
                        help="delete a system's previous output first")
     trans.add_argument("--allow-network", action="store_true",
@@ -923,6 +932,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     every.add_argument("--limit", type=int, default=None)
     every.add_argument("--timeout", type=int, default=60 * 60 * 6)
     every.add_argument("--no-gpu", action="store_true")
+    every.add_argument("--gpu-args", default="--gpus all")
     every.add_argument("--fresh", action="store_true")
     every.add_argument("--allow-network", action="store_true")
     every.add_argument("--shm-size", default="2g")

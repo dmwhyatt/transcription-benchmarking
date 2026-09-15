@@ -131,6 +131,21 @@ done
 switched and the build cannot quietly measure whichever branch it was left on.
 Each build prints the commit it resolved; check it.
 
+**If `doctor` says `--gpus all` does not work** while `nvidia-smi` is fine,
+the host driver is not the problem -- containers reach the GPU through the
+NVIDIA Container Toolkit, which is separate. On docker 29 that path goes
+through CDI, and the giveaway is "failed to discover GPU vendor from CDI":
+
+```shell
+sudo nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml
+nvidia-ctk cdi list                  # expect nvidia.com/gpu=all
+```
+
+Older docker wants `sudo nvidia-ctk runtime configure --runtime=docker` and a
+daemon restart instead. If a machine ends up wanting the CDI device syntax
+rather than `--gpus`, `transcribe --gpu-args "--device nvidia.com/gpu=all"`
+says so without a code change.
+
 **Before a long run on a shared machine, look at the card.** A CUDA OOM
 reported by a model is usually somebody else's job holding the memory --
 `nvidia-smi` names the process. `transcribe` now prints free and total GPU
