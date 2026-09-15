@@ -31,6 +31,7 @@ import argparse
 import datetime as dt
 import json
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -189,11 +190,23 @@ def cmd_doctor(args) -> int:
         print("         CUDA images here pin 11.6 to 12.9; the host driver must")
         print("         be new enough for the highest of those you build.")
     if daemon:
-        gpu_probe = subprocess.run(
-            ["docker", "run", "--rm", "--gpus", "all", "ubuntu:22.04", "true"],
-            capture_output=True, text=True)
-        check("docker --gpus all works", gpu_probe.returncode == 0,
-              gpu_probe.stderr.strip().splitlines()[-1][:90] if gpu_probe.returncode else "")
+        working = working_gpu_args()
+        check("a container can reach the GPU", working is not None,
+              f"use --gpu-args \"{working}\"" if working
+              else docker_error(gpu_probe_error()))
+        if working == GPU_ARGS_CDI:
+            print("         Note: \"--gpus all\" does not work here but the CDI "
+                  "device does, so pass")
+            print(f"           transcribe --gpu-args \"{working}\"")
+            print("         (transcribe falls back to it on its own, and says "
+                  "so when it does)")
+        elif working is None:
+            print("         The GPU images cannot run without this. Check that "
+                  "the NVIDIA Container")
+            print("         Toolkit is installed, and on docker 29 that a CDI "
+                  "spec exists:")
+            print("           sudo nvidia-ctk cdi generate "
+                  "--output=/etc/cdi/nvidia.yaml && nvidia-ctk cdi list")
 
     print("\nbenchmark")
     bench = shutil.which("transcription-benchmark")
@@ -487,6 +500,17 @@ def cmd_transcribe(args) -> int:
         log(f"smoke run: {len(items)} of the corpus, staged at {mounted}")
     log(f"{len(items)} items, {len(list(selected(args)))} systems")
 
+    chosen = [s for s in selected(args) if s.gpu]
+    if chosen and not args.no_gpu and args.gpu_args == GPU_ARGS_DEFAULT:
+        if not _can_reach_gpu(GPU_ARGS_DEFAULT):
+            if _can_reach_gpu(GPU_ARGS_CDI):
+                log(f'"{GPU_ARGS_DEFAULT}" does not work here; using '
+                    f'"{GPU_ARGS_CDI}" instead')
+                args.gpu_args = GPU_ARGS_CDI
+            else:
+                log("no container can reach the GPU by either spelling; "
+                    "run `./bench.py doctor`")
+
     summary = []
     for system in selected(args):
         summary.append(transcribe_one(system, mounted, len(items), work, args))
@@ -519,7 +543,11 @@ def transcribe_one(system, audio_dir: Path, expected: int, work: Work, args) -> 
     if adapter.exists():
         argv += ["-v", f"{adapter}:/adapter.py:ro"]
     if system.gpu and not args.no_gpu:
-        argv += ["--gpus", "all"]
+        # "--gpus all" is the usual spelling, but docker 29 routes it through
+        # CDI, and a machine whose CDI spec is generated but whose --gpus path
+        # still refuses will take "--device nvidia.com/gpu=all" instead. One
+        # string rather than a hardcoded pair, so neither needs a code change.
+        argv += shlex.split(args.gpu_args)
     # Docker gives a container 64 MB of /dev/shm, and a PyTorch DataLoader with
     # workers uses shared memory to hand tensors back to the parent. When it
     # runs out the worker dies on SIGBUS and the traceback blames whichever
@@ -626,6 +654,50 @@ def transcribe_one(system, audio_dir: Path, expected: int, work: Work, args) -> 
     (out / "run.json").write_text(json.dumps(record, indent=2))
     log(f"{label}: {status}, {len(written)} midi, {elapsed:.0f}s")
     return record
+
+
+def docker_error(stderr: str) -> str:
+    """The line of a docker failure that says what went wrong.
+
+    Not the last line: the CLI ends with "Run 'docker run --help' for more
+    information", so taking the tail reports the trailer and hides the cause.
+    """
+    lines = [line.strip() for line in stderr.strip().splitlines() if line.strip()]
+    for line in lines:
+        if "error" in line.lower() or "denied" in line.lower():
+            return line[:160]
+    return lines[0][:160] if lines else ""
+
+
+GPU_ARGS_DEFAULT = "--gpus all"
+GPU_ARGS_CDI = "--device nvidia.com/gpu=all"
+_gpu_probe_errors: Dict[str, str] = {}
+
+
+def _can_reach_gpu(gpu_args: str) -> bool:
+    probe = subprocess.run(
+        ["docker", "run", "--rm", *shlex.split(gpu_args), "ubuntu:22.04", "true"],
+        capture_output=True, text=True)
+    if probe.returncode != 0:
+        _gpu_probe_errors[gpu_args] = probe.stderr
+    return probe.returncode == 0
+
+
+def working_gpu_args() -> Optional[str]:
+    """Which spelling actually gives a container the GPU on this machine.
+
+    docker 29 resolves "--gpus all" through CDI and its vendor discovery can
+    fail on a machine with an NVIDIA CDI spec present -- "AMD CDI spec not
+    found" -- while the device itself works when named directly.
+    """
+    for candidate in (GPU_ARGS_DEFAULT, GPU_ARGS_CDI):
+        if _can_reach_gpu(candidate):
+            return candidate
+    return None
+
+
+def gpu_probe_error() -> str:
+    return _gpu_probe_errors.get(GPU_ARGS_DEFAULT, "")
 
 
 def gpu_memory():
@@ -873,6 +945,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     trans.add_argument("--timeout", type=int, default=60 * 60 * 6,
                        help="per-system wall clock limit, seconds")
     trans.add_argument("--no-gpu", action="store_true")
+    trans.add_argument("--gpu-args", default=GPU_ARGS_DEFAULT,
+                       help="how to give a container the GPU (default "
+                            "'--gpus all'). On docker 29 with CDI, "
+                            "'--device nvidia.com/gpu=all' is the alternative.")
     trans.add_argument("--fresh", action="store_true",
                        help="delete a system's previous output first")
     trans.add_argument("--allow-network", action="store_true",
@@ -903,6 +979,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     every.add_argument("--limit", type=int, default=None)
     every.add_argument("--timeout", type=int, default=60 * 60 * 6)
     every.add_argument("--no-gpu", action="store_true")
+    every.add_argument("--gpu-args", default=GPU_ARGS_DEFAULT)
     every.add_argument("--fresh", action="store_true")
     every.add_argument("--allow-network", action="store_true")
     every.add_argument("--shm-size", default="2g")

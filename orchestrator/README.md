@@ -68,9 +68,9 @@ export TRANSCPYBE_SRC=~/transcpybe
 ./bench.py doctor
 ```
 
-It verifies docker, the GPU, `--gpus all` inside a container, the benchmark on
-PATH, free disk against the images' sizes, and every Dockerfile's base image
-tag against the registry. A wrong base tag otherwise costs a long build before
+It verifies docker, the GPU, whether a container can reach it (trying both
+`--gpus all` and the CDI device), the benchmark on PATH, free disk against the
+images' sizes, and every Dockerfile's base image tag against the registry. A wrong base tag otherwise costs a long build before
 it fails.
 
 **5. Build.** If disk is tight, `doctor` prints a wave plan; otherwise:
@@ -130,6 +130,34 @@ done
 `--rev` builds each in a detached worktree, so the checkout never has to be
 switched and the build cannot quietly measure whichever branch it was left on.
 Each build prints the commit it resolved; check it.
+
+**If `doctor` says `--gpus all` does not work** while `nvidia-smi` is fine,
+the host driver is not the problem -- containers reach the GPU through the
+NVIDIA Container Toolkit, which is separate. On docker 29 that path goes
+through CDI, and the giveaway is "failed to discover GPU vendor from CDI":
+
+```shell
+sudo nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml
+nvidia-ctk cdi list                  # expect nvidia.com/gpu=all
+```
+
+Older docker wants `sudo nvidia-ctk runtime configure --runtime=docker` and a
+daemon restart instead.
+
+Generating the spec does not always make `--gpus all` work. Docker 29 resolves
+that flag by *discovering* a vendor, and on a machine where discovery misfires
+it reports the wrong vendor entirely -- "AMD CDI spec not found" on a box whose
+only card is NVIDIA. Naming the device skips discovery:
+
+```shell
+docker run --rm --device nvidia.com/gpu=all ubuntu:22.04 true
+```
+
+If that works and `--gpus all` does not, nothing is wrong with the toolkit.
+`doctor` probes both spellings and tells you which one this machine takes, and
+`transcribe` falls back to the CDI device on its own -- it prints a line when
+it does -- so no flag is needed. `--gpu-args` overrides the choice if you want
+a different one (`--gpu-args "--device nvidia.com/gpu=0"` to pin one card).
 
 **Before a long run on a shared machine, look at the card.** A CUDA OOM
 reported by a model is usually somebody else's job holding the memory --
