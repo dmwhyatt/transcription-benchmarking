@@ -86,6 +86,42 @@ def audio_items(audio_dir: Path) -> List[Path]:
     return found
 
 
+def sample_items(items: Sequence[Path], count: int, seed: int) -> List[Path]:
+    """`count` items spread across the corpus's directories, not its head.
+
+    On a corpus laid out one directory per song -- M4Singer's 20,896 segments
+    are all named 0000.wav, 0001.wav inside their own folders -- taking the
+    first N takes one song and reports it as the dataset. This takes a share
+    from each directory in turn, so a sample of 200 is drawn from 200 songs
+    rather than the first two, and it is seeded so the draw can be repeated.
+    """
+    import random
+
+    by_directory: Dict[str, List[Path]] = {}
+    for item in items:
+        by_directory.setdefault(str(item.parent), []).append(item)
+    rng = random.Random(seed)
+    for group in by_directory.values():
+        rng.shuffle(group)
+    directories = sorted(by_directory)
+    rng.shuffle(directories)
+    chosen: List[Path] = []
+    depth = 0
+    while len(chosen) < count:
+        added = False
+        for directory in directories:
+            group = by_directory[directory]
+            if depth < len(group):
+                chosen.append(group[depth])
+                added = True
+                if len(chosen) == count:
+                    break
+        if not added:
+            break
+        depth += 1
+    return sorted(chosen)
+
+
 def stage_subset(audio_dir: Path, items: Sequence[Path], staging: Path) -> Path:
     """A corpus of just `items`, for a smoke run, with the tree preserved.
 
@@ -494,8 +530,23 @@ def cmd_transcribe(args) -> int:
         print(f"error: no audio under {audio_dir}", file=sys.stderr)
         return 2
     mounted = audio_dir
-    if args.limit:
+    if args.limit and args.sample:
+        print("error: --limit takes the first N and --sample spreads N across "
+              "the corpus; pick one", file=sys.stderr)
+        return 2
+    if args.sample:
+        picked = sample_items(items, args.sample, args.seed)
+        songs = len({str(i.parent) for i in picked})
+        log(f"sample: {len(picked)} of {len(items)} items across {songs} "
+            f"directories (seed {args.seed})")
+        items = picked
+        mounted = stage_subset(audio_dir, items, work.root / "staging" / "audio")
+    elif args.limit:
         items = items[: args.limit]
+        if len({str(i.parent) for i in items}) == 1 and len(items) > 1:
+            log("note: --limit took the head of the corpus and every item is "
+                "in one directory; on a corpus laid out one folder per song "
+                "that measures one song. --sample spreads the draw.")
         mounted = stage_subset(audio_dir, items, work.root / "staging" / "audio")
         log(f"smoke run: {len(items)} of the corpus, staged at {mounted}")
     log(f"{len(items)} items, {len(list(selected(args)))} systems")
@@ -1044,6 +1095,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     trans.add_argument("--audio", required=True)
     trans.add_argument("--limit", type=int, default=None,
                        help="smoke run over the first N items")
+    trans.add_argument("--sample", type=int, default=None,
+                       help="draw N items spread across the corpus's "
+                            "directories rather than taking the first N")
+    trans.add_argument("--seed", type=int, default=0,
+                       help="seed for --sample, so the draw repeats")
     trans.add_argument("--timeout", type=int, default=60 * 60 * 6,
                        help="per-system wall clock limit, seconds")
     trans.add_argument("--no-gpu", action="store_true")
@@ -1101,6 +1157,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     every.add_argument("-a", "--annotations", default=None)
     every.add_argument("--items", default=None)
     every.add_argument("--limit", type=int, default=None)
+    every.add_argument("--sample", type=int, default=None,
+                       help="draw N items spread across the corpus's "
+                            "directories rather than taking the first N")
+    every.add_argument("--seed", type=int, default=0,
+                       help="seed for --sample, so the draw repeats")
     every.add_argument("--timeout", type=int, default=60 * 60 * 6)
     every.add_argument("--no-gpu", action="store_true")
     every.add_argument("--gpu-args", default=GPU_ARGS_DEFAULT)
