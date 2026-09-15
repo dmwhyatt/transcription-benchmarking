@@ -323,6 +323,13 @@ comparing separate intervals counts it twice. Nine systems is thirty-six pairs,
 and at 95% intervals about one pair in twenty will separate two systems that
 are level.
 
+`table --sort conpoff` reorders it. COnP is the default because it is the
+headline metric, but COnPOff is where the systems actually differ, and a
+version can gain a lot there while standing still on COnP -- transcPybe v3
+over v1 is exactly that. `con`, `octave` and `name` also sort; every metric
+sorts best first, octave error included, so the top of the table means the
+same thing whichever column ordered it.
+
 `table --percent` prints the whole table as a share of that ceiling instead of
 raw F, which is usually the more honest way to read it -- COnPOff 0.424 sounds
 poor and is 66% of what two humans manage. It needs the ceiling measured on

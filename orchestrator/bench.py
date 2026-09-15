@@ -784,6 +784,18 @@ def cmd_compare(args) -> int:
     return 0
 
 
+# Every metric sorts best-first, so the top of the table means the same thing
+# whichever column it was ordered by -- including octave error, where best is
+# least. Only the name sorts ascending, which is what alphabetical means.
+SORTS = {
+    "conp": (lambda r: r["conp"]["mean"], "COnP"),
+    "con": (lambda r: r["con"]["mean"], "COn"),
+    "conpoff": (lambda r: r["conpoff"]["mean"], "COnPOff"),
+    "octave": (lambda r: -r["octave_error_rate"], "octave error (least first)"),
+    "name": (lambda r: r["system"], "name"),
+}
+
+
 def load_ceiling(work: "Work", explicit: Optional[str]) -> Optional[Dict]:
     """The human agreement a percentage is taken against.
 
@@ -855,8 +867,11 @@ def cmd_table(args) -> int:
         log(f"no scored results in {work.results}; run `score` first")
         return 1
 
-    # By COnP, which is the headline metric: onset and pitch, not offset.
-    rows.sort(key=lambda r: r["conp"]["mean"], reverse=True)
+    # Default COnP, the headline metric: onset and pitch, not offset. Sorting
+    # by COnPOff is the other question worth asking -- it is where the systems
+    # differ most, and a version can gain there while standing still on COnP.
+    sort_key, sort_label = SORTS[args.sort]
+    rows.sort(key=sort_key, reverse=args.sort != "name")
 
     timings = {}
     summary = work.results / "transcribe-summary.json"
@@ -926,10 +941,10 @@ def cmd_table(args) -> int:
         print(f"{rows[0]['items']} recordings, "
               f"{rows[0]['reference_notes']} reference notes. "
               f"Macro mean over recordings, 95% bootstrap interval.")
-        print("\nSorted by COnP, and the order is not a ranking: intervals "
-              "this wide\noverlap freely. Use `compare` for any claim that one "
-              "system beats another --\nit bootstraps the paired difference, "
-              "which is the question being asked.")
+        print(f"\nSorted by {sort_label}, and the order is not a ranking: "
+              "intervals this wide\noverlap freely. Use `compare` for any "
+              "claim that one system beats another --\nit bootstraps the "
+              "paired difference, which is the question being asked.")
         if ceiling:
             tags = " vs ".join(ceiling["annotators"])
             print(f"\n100% is human agreement on this corpus ({tags}, "
@@ -1056,6 +1071,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     table = sub.add_parser("table", help="one table across every scored system")
     table.add_argument("--markdown", action="store_true",
                        help="emit a markdown table, for pasting into docs/")
+    table.add_argument("--sort", choices=sorted(SORTS), default="conp",
+                       metavar="KEY",
+                       help="order by one of " + ", ".join(sorted(SORTS))
+                            + " (default conp). Metrics sort best first.")
     table.add_argument("--percent", action="store_true",
                        help="show each score as a percentage of human "
                             "agreement on this corpus instead of a raw F. "
