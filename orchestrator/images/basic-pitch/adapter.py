@@ -48,12 +48,13 @@ def main():
             if produced:
                 target.write_bytes(produced[0].read_bytes())
         ok = target.exists()
-        rows.append({"item": str(relative), "status": "ok" if ok else "fail",
-                     "seconds": round(time.time() - started, 2),
-                     "stderr": "" if ok else proc.stderr[-3000:]})
+        row = {"item": str(relative), "status": "ok" if ok else "fail",
+               "seconds": round(time.time() - started, 2),
+               "stderr": "" if ok else proc.stderr[-3000:]}
+        rows.append(row)
         print(f"{'ok  ' if ok else 'FAIL'} {relative}", flush=True)
-        if not ok and row.get("stderr", row.get("error")):
-            for line in str(row.get("stderr") or row.get("error")).strip().splitlines()[-8:]:
+        if not ok and row["stderr"]:
+            for line in row["stderr"].strip().splitlines()[-8:]:
                 print(f"       {line}", flush=True)
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "adapter.json").write_text(json.dumps(

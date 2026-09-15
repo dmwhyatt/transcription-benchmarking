@@ -258,10 +258,25 @@ SYSTEMS: List[System] = [
               "detail.",
     ),
     System(name="some", title="SOME (OpenVPI)", licence="MIT", gpu=True,
-           status=PLANNED,
-           checkpoint=Checkpoint(kind="manual",
-                                 manual_hint="Weights: github.com/openvpi/SOME/releases"),
-           notes="Superseded by GAME; run it only to measure the difference."),
+           cpu_ok=True, status=READY, tested=False, approx_gb=6.0,
+           checkpoint=Checkpoint(
+               kind="manual",
+               manual_hint="Weights: github.com/openvpi/SOME/releases. Extract "
+                           "the zip whole into ckpt/some so the .ckpt and its "
+                           "config.yaml stay together -- infer.py reads the "
+                           "config from the checkpoint's own directory. "
+                           "Optionally add the RMVPE model from "
+                           "github.com/yxlllc/RMVPE/releases as "
+                           "ckpt/some/pretrained; without it SOME falls back "
+                           "to parselmouth for pitch, which the adapter "
+                           "records."),
+           notes="GAME's predecessor, and the control for GAME's odd result: "
+                 "best onsets in the sweep, near-worst offsets. If SOME shows "
+                 "the same shape it is the model family; if it does not, the "
+                 "ONNX decoding in images/game is the suspect. Image written "
+                 "from upstream source, never built -- the inference path "
+                 "needs none of requirements.txt's fairseq, gradio or onnx, "
+                 "which is what makes it installable at all."),
     System(name="ctc-ce", title="CTC_CE_for_AST (Wang and Jang, TASLP 2022)",
            licence="none stated", gpu=True, status=PLANNED,
            checkpoint=Checkpoint(kind="manual",
@@ -274,10 +289,18 @@ SYSTEMS: List[System] = [
                  "annotations shifted by +30 ms, which is independent "
                  "evidence about that corpus rather than about the model."),
     System(name="keums", title="Kum et al. teacher-student (ICASSP 2022)",
-           licence="none stated", gpu=True, status=PLANNED,
+           licence="none stated", gpu=False, cpu_ok=True,
+           status=READY, tested=False, approx_gb=2.5,
            checkpoint=Checkpoint(kind="in-image"),
-           notes="Keras/TF 2.5 pin is the work. Transcribes polyphonic audio "
-                 "directly, so it needs no separation step."),
+           notes="Transcribes polyphonic audio directly, so it needs no "
+                 "separation step. Weights ship in the repository "
+                 "(data/weight_ST.hdf5), so the run needs no network. CPU "
+                 "only: tf 2.5 wants CUDA 11.2 with cuDNN 8.1 exactly, which "
+                 "is more risk than it saves on 40 short recordings. Its "
+                 "requirements.txt pins keras==2.7.0 beside tensorflow==2.5.0 "
+                 "and the code imports tensorflow.keras, so the image installs "
+                 "no standalone keras. Written from upstream source, never "
+                 "built."),
     System(name="yourmt3", title="YourMT3+ (MLSP 2024)", licence="GPL-3.0",
            gpu=True, cpu_ok=False, status=PLANNED,
            checkpoint=Checkpoint(kind="hf", ref="mimbres/YourMT3"),
