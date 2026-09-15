@@ -100,7 +100,9 @@ SYSTEMS: List[System] = [
               "clone -- set TRANSCPYBE_SRC or keep it at ../transcpybe. "
               "Installed with its crepe extra, whose torchcrepe weights ship "
               "in the wheel, so it still runs with no network. Batches the "
-              "corpus in one process where stems are unique.",
+              "corpus in one process where stems are unique. On a card that "
+              "is not empty, TRANSCPYBE_ARGS='--crepe-batch-size 128' lowers "
+              "peak memory; the default is 512.",
     ),
     System(
         name="basic-pitch",

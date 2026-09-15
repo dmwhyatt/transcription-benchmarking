@@ -534,6 +534,19 @@ def transcribe_one(system, audio_dir: Path, expected: int, work: Work, args) -> 
         argv += ["--network", "none"]
     argv += system.docker_args + [label_tag(system, args)]
 
+    # A GPU system on a card someone else is already filling fails as a CUDA
+    # OOM deep inside whichever layer happened to allocate next, which reads as
+    # a bug in the model. Look first, and say what was free.
+    if system.gpu and not args.no_gpu and not args.dry_run:
+        free, total = gpu_memory()
+        if free is not None:
+            log(f"{label}: GPU has {free} MiB free of {total} MiB")
+            if free < 3000:
+                log(f"{label}: that is not much. A CUDA OOM here is more "
+                    "likely to be another process holding the card than this "
+                    "system needing more -- check nvidia-smi before believing "
+                    "the traceback.")
+
     # Without this, docker treats an unbuilt tag as something to pull and the
     # failure arrives as "pull access denied ... may require docker login",
     # which sends you looking for a credentials problem that does not exist.
@@ -613,6 +626,25 @@ def transcribe_one(system, audio_dir: Path, expected: int, work: Work, args) -> 
     (out / "run.json").write_text(json.dumps(record, indent=2))
     log(f"{label}: {status}, {len(written)} midi, {elapsed:.0f}s")
     return record
+
+
+def gpu_memory():
+    """Free and total MiB on GPU 0, or (None, None) if nvidia-smi cannot say."""
+    try:
+        probe = subprocess.run(
+            ["nvidia-smi", "--query-gpu=memory.free,memory.total",
+             "--format=csv,noheader,nounits"], capture_output=True, text=True)
+    except OSError:
+        # No nvidia-smi at all: absent binary raises rather than exiting
+        # non-zero, which is a different failure from a broken one.
+        return None, None
+    if probe.returncode != 0 or not probe.stdout.strip():
+        return None, None
+    try:
+        free, total = probe.stdout.strip().splitlines()[0].split(",")
+        return int(free), int(total)
+    except (ValueError, IndexError):
+        return None, None
 
 
 def image_id(tag: str) -> str:
