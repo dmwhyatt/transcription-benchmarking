@@ -110,16 +110,23 @@ record you want to compare against. `--as` files a run under a different name:
 
 ```shell
 # the record of v1 already exists; keep it
-mv bench-work/out/transcpybe     bench-work/out/transcpybe-v1
+docker tag bench/transcpybe bench/transcpybe-v1
+mv bench-work/out/transcpybe          bench-work/out/transcpybe-v1
 mv bench-work/results/transcpybe.json bench-work/results/transcpybe-v1.json
 
-git -C ~/transcpybe pull
-./bench.py --only transcpybe --as transcpybe-v2 build --prune
+./bench.py --only transcpybe --as transcpybe-v2 --rev origin/some-branch build --prune
 ./bench.py --only transcpybe --as transcpybe-v2 transcribe --audio ~/vocadito/
 ./bench.py score --audio ~/vocadito/Audio -a ~/vocadito/Annotations
 ./bench.py table
 ./bench.py compare
 ```
+
+`--rev` takes a branch, tag or commit and builds it in a detached worktree, so
+the build does not depend on which branch the checkout happens to be sitting
+on. That distinction matters more than it sounds: `git pull` fetches a branch
+without switching to it, so a build from the working tree can quietly measure
+the previous version under the new name -- succeeding, and being wrong. If the
+revision is not local yet, it fetches once and retries.
 
 The label renames the image tag as well, so `bench/transcpybe-v1` survives and
 v1 stays re-runnable. Each run records the commit its source was on --

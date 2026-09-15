@@ -286,6 +286,47 @@ def source_revision(source: Path) -> str:
     return probe.stdout.strip() + suffix
 
 
+def resolve_revision(source: Path, rev: str) -> str:
+    """The commit `rev` names in `source`, fetching once if it is not here yet."""
+    def sha():
+        probe = subprocess.run(
+            ["git", "-C", str(source), "rev-parse", "--verify", f"{rev}^{{commit}}"],
+            capture_output=True, text=True)
+        return probe.stdout.strip() if probe.returncode == 0 else ""
+
+    found = sha()
+    if not found:
+        log(f"{rev} is not in {source} yet; fetching")
+        run(["git", "-C", str(source), "fetch", "origin"], check=False)
+        found = sha()
+    return found
+
+
+def checkout_revision(source: Path, rev: str, into: Path) -> Optional[Path]:
+    """A detached worktree of `source` at `rev`, so the build does not depend
+    on which branch someone left the working tree on.
+
+    Checking out by hand is the step that silently produces the wrong answer:
+    a pull that fetches a branch without switching to it leaves the old code
+    in place, and the build then succeeds and measures the previous version
+    under the new name.
+    """
+    commit = resolve_revision(source, rev)
+    if not commit:
+        log(f"no such revision {rev} in {source}")
+        return None
+    subprocess.run(["git", "-C", str(source), "worktree", "remove", "--force",
+                    str(into)], capture_output=True)
+    shutil.rmtree(into, ignore_errors=True)
+    into.parent.mkdir(parents=True, exist_ok=True)
+    result = run(["git", "-C", str(source), "worktree", "add", "--detach",
+                  str(into), commit], check=False)
+    if result.returncode != 0:
+        return None
+    log(f"building {rev} at {commit[:7]}")
+    return into
+
+
 def cmd_build(args) -> int:
     """Build each image, keeping the output, because "build failed: aubio" is
     not a diagnosis. The log is written per system and its tail printed on
@@ -294,6 +335,7 @@ def cmd_build(args) -> int:
     work = Work(Path(args.work))
     failures = []
     for system in selected(args):
+        worktree = None
         # Every system builds. Tagging an upstream image directly would skip
         # this directory's Dockerfile, and with it the adapter -- the container
         # would then run whatever the upstream entrypoint is, which for
@@ -332,6 +374,15 @@ def cmd_build(args) -> int:
                     f"Check {system.build_context_env}.")
                 failures.append(system.name)
                 continue
+            worktree = None
+            if getattr(args, "rev", None):
+                worktree = checkout_revision(
+                    source, args.rev,
+                    Work(Path(args.work)).root / "src" / label_for(system, args))
+                if worktree is None:
+                    failures.append(system.name)
+                    continue
+                source = worktree
             log(f"{system.name}: building from {source}")
             revision = source_revision(source)
             if revision:
@@ -364,6 +415,9 @@ def cmd_build(args) -> int:
                     f"(full log: {work.logs / f'build-{system.name}.log'})")
                 for line in tail:
                     print(f"    {line}")
+        if worktree is not None and not args.dry_run:
+            subprocess.run(["git", "-C", str(worktree.parent.parent.parent),
+                            "worktree", "prune"], capture_output=True)
         if getattr(args, "prune", False):
             # BuildKit's cache can transiently double a build's footprint,
             # which is what runs a nearly-full disk out mid-layer.
@@ -758,6 +812,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                              "name, so an earlier run's image, output and score "
                              "all survive. Requires a single --only. Accepted "
                              "before or after the subcommand.")
+    parser.add_argument("--rev", default=None, metavar="REV",
+                        help="build a system from this git revision -- a branch, "
+                             "tag or commit -- in a detached worktree, instead "
+                             "of whatever its checkout happens to be on. Only "
+                             "applies to a system built from local source.")
     parser.add_argument("--dry-run", action="store_true",
                         help="print every command instead of running it")
     sub = parser.add_subparsers(dest="command", required=True)
