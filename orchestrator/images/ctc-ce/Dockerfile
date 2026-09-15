@@ -42,16 +42,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # afterwards -- the mismatch that shows up later as a binary-incompatibility
 # error rather than as a failed build.
 RUN pip install --no-cache-dir "numpy<2"
-# h5py, avoiding the compile rather than trying to satisfy it. This base is
-# conda-based, and conda-forge ships h5py as a binary with its own HDF5, so
-# nothing is built. The fallback covers a base without conda and names the
-# HDF5 location explicitly: Debian's libhdf5-dev installs to .../hdf5/serial
-# and publishes hdf5-serial.pc, not hdf5.pc, so h5py's own pkg-config lookup
-# misses it even when the headers are present -- which is why installing them
-# alone did not fix this.
-RUN conda install -y -c conda-forge "h5py" "numpy<2" \
-    || HDF5_DIR=/usr/lib/x86_64-linux-gnu/hdf5/serial \
-       pip install --no-cache-dir --no-build-isolation "h5py"
+# h5py. Not via conda: pulling conda-forge into this image's defaults
+# environment sends the solver spinning for many minutes and can rewrite the
+# very packages torch depends on, which is a worse outcome than a failed
+# build because it succeeds.
+#
+# HDF5_DIR is named explicitly because Debian's libhdf5-dev installs under
+# .../hdf5/serial and publishes hdf5-serial.pc rather than hdf5.pc, so h5py's
+# own pkg-config lookup misses it even with the headers installed -- which is
+# why adding them alone changed nothing. If a wheel is available this is
+# ignored and nothing is compiled anyway.
+RUN HDF5_DIR=/usr/lib/x86_64-linux-gnu/hdf5/serial \
+    pip install --no-cache-dir "h5py" \
+ || HDF5_DIR=/usr/lib/x86_64-linux-gnu/hdf5/serial \
+    pip install --no-cache-dir "h5py<3.8"
 RUN pip install --no-cache-dir "librosa" "mido" "PyYAML" "tqdm" \
     && python3 -c "import h5py, librosa, mido, yaml, numpy; \
 print('h5py', h5py.__version__, '| numpy', numpy.__version__)"
