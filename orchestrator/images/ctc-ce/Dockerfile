@@ -23,8 +23,11 @@ FROM pytorch/pytorch:1.13.1-cuda11.6-cudnn8-runtime
 ARG DEBIAN_FRONTEND=noninteractive
 ARG GIT_TERMINAL_PROMPT=0
 
+# libhdf5-dev and pkg-config are for h5py. On this base pip does not use a
+# wheel for it and falls back to compiling, which needs the HDF5 headers --
+# mirst500 runs on the same image and never hit this because it needs no h5py.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        git ffmpeg libsndfile1 \
+        git ffmpeg libsndfile1 build-essential pkg-config libhdf5-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Deliberately not requirements.txt. It lists spleeter, omnizart==0.5.0,
@@ -34,8 +37,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # do_everything.py, predictor.py, seq_dataset.py or get_feature.py, because
 # they belong to the paper's comparison experiments. Installing them would
 # mean a TF 1.x-era dependency tree for code that never runs.
-RUN pip install --no-cache-dir \
-        "librosa" "mido" "h5py" "PyYAML" "tqdm" "numpy<2"
+# numpy first and alone, so that if h5py does compile it builds against the
+# numpy that will be imported at run time rather than one pip swaps in
+# afterwards -- the mismatch that shows up later as a binary-incompatibility
+# error rather than as a failed build.
+RUN pip install --no-cache-dir "numpy<2"
+RUN pip install --no-cache-dir "h5py"
+RUN pip install --no-cache-dir "librosa" "mido" "PyYAML" "tqdm" \
+    && python3 -c "import h5py, librosa, mido, yaml, numpy; \
+print('h5py', h5py.__version__, '| numpy', numpy.__version__)"
 
 ARG CTC_CE_REV=main
 RUN git clone https://github.com/york135/CTC_CE_for_AST /app \
