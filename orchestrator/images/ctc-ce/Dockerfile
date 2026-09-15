@@ -42,21 +42,35 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # afterwards -- the mismatch that shows up later as a binary-incompatibility
 # error rather than as a failed build.
 RUN pip install --no-cache-dir "numpy<2"
-# h5py. Not via conda: pulling conda-forge into this image's defaults
-# environment sends the solver spinning for many minutes and can rewrite the
-# very packages torch depends on, which is a worse outcome than a failed
-# build because it succeeds.
+# h5py, and the two ways this went wrong are worth stating because they are
+# the same two that bit crepe-notes and aubio here.
 #
-# HDF5_DIR is named explicitly because Debian's libhdf5-dev installs under
-# .../hdf5/serial and publishes hdf5-serial.pc rather than hdf5.pc, so h5py's
-# own pkg-config lookup misses it even with the headers installed -- which is
-# why adding them alone changed nothing. If a wheel is available this is
-# ignored and nothing is compiled anyway.
-RUN HDF5_DIR=/usr/lib/x86_64-linux-gnu/hdf5/serial \
-    pip install --no-cache-dir "h5py" \
- || HDF5_DIR=/usr/lib/x86_64-linux-gnu/hdf5/serial \
-    pip install --no-cache-dir "h5py<3.8"
-RUN pip install --no-cache-dir "librosa" "mido" "PyYAML" "tqdm" \
+# A wheel first, and --only-binary so pip may not quietly fall back to
+# compiling. h5py's wheels bundle their own HDF5, which makes this image
+# independent of the 1.10.0 that Debian ships -- too old for current h5py,
+# which wants >= 1.10.7. If no wheel exists for this interpreter, that is a
+# fact worth failing on immediately rather than discovering through a
+# compiler error.
+#
+# The fallback compiles, and must not do it under build isolation. Isolation
+# builds a fresh environment, installs the newest numpy into it, and compiles
+# the extension against numpy 2 headers -- which then meets numpy<2 at run
+# time as "numpy.dtype size changed ... Expected 96 from C header, got 88".
+# That install succeeds and the import fails, so it costs a whole sweep to
+# find. --no-build-isolation compiles against the numpy already installed,
+# which is the one that will be imported. 3.7.0 because it accepts HDF5
+# 1.10.0.
+RUN pip install --no-cache-dir --only-binary=:all: "h5py" \
+ || ( pip install --no-cache-dir "setuptools" "wheel" "Cython" "pkgconfig" \
+      && HDF5_DIR=/usr/lib/x86_64-linux-gnu/hdf5/serial \
+         pip install --no-cache-dir --no-build-isolation "h5py==3.7.0" )
+
+# numpy<2 repeated, not redundantly: without it pip is free to satisfy
+# librosa by upgrading numpy to 2.x, which breaks the h5py just installed in
+# exactly the way guarded against above. The import check is what would catch
+# that, and it runs here so a bad combination fails the build rather than the
+# sweep.
+RUN pip install --no-cache-dir "librosa" "mido" "PyYAML" "tqdm" "numpy<2" \
     && python3 -c "import h5py, librosa, mido, yaml, numpy; \
 print('h5py', h5py.__version__, '| numpy', numpy.__version__)"
 
