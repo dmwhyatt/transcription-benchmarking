@@ -68,7 +68,8 @@ export TRANSCPYBE_SRC=~/transcpybe
 ./bench.py doctor
 ```
 
-It verifies docker, the GPU, `--gpus all` inside a container, the benchmark on
+It verifies docker, the GPU, whether a container can reach it (trying both
+`--gpus all` and the CDI device), the benchmark on
 PATH, free disk against the images' sizes, and every Dockerfile's base image
 tag against the registry. A wrong base tag otherwise costs a long build before
 it fails.
@@ -142,9 +143,22 @@ nvidia-ctk cdi list                  # expect nvidia.com/gpu=all
 ```
 
 Older docker wants `sudo nvidia-ctk runtime configure --runtime=docker` and a
-daemon restart instead. If a machine ends up wanting the CDI device syntax
-rather than `--gpus`, `transcribe --gpu-args "--device nvidia.com/gpu=all"`
-says so without a code change.
+daemon restart instead.
+
+Generating the spec does not always make `--gpus all` work. Docker 29 resolves
+that flag by *discovering* a vendor, and on a machine where discovery misfires
+it reports the wrong vendor entirely -- "AMD CDI spec not found" on a box whose
+only card is NVIDIA. Naming the device skips discovery:
+
+```shell
+docker run --rm --device nvidia.com/gpu=all ubuntu:22.04 true
+```
+
+If that works and `--gpus all` does not, nothing is wrong with the toolkit.
+`doctor` probes both spellings and tells you which one this machine takes, and
+`transcribe` falls back to the CDI device on its own -- it prints a line when
+it does -- so no flag is needed. `--gpu-args` overrides the choice if you want
+a different one (`--gpu-args "--device nvidia.com/gpu=0"` to pin one card).
 
 **Before a long run on a shared machine, look at the card.** A CUDA OOM
 reported by a model is usually somebody else's job holding the memory --
