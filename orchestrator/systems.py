@@ -196,7 +196,7 @@ SYSTEMS: List[System] = [
               "load-bearing and neither is obvious: without --verbose "
               "failures are silent, and without --apply_rwbd every item "
               "raises on missing word_durs and the output directory comes "
-              "out empty. See docs/benchmarking-rosvot.md.",
+              "out empty.",
     ),
     System(
         name="game",
