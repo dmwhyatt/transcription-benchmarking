@@ -2,7 +2,8 @@
 
 Guo et al., "STARS: A Unified Framework for Singing Transcription, Alignment, and Refined Style Annotation", Findings
 of ACL 2025, arXiv 2507.06670. Code: github.com/gwx314/STARS, MIT, pinned to f0e43e9 (18 August 2026). Built on ROSVOT
-by an overlapping group. Prepared 12 November 2026; smoke-tested on two vocadito recordings, not yet run on any set.
+by an overlapping group. Prepared 12 November 2026 and run on all five
+sets after the fix described below (`run_five_r2.sh`). Its scores are in the README's results table, marked ‡.
 
 ## It needs lyrics
 

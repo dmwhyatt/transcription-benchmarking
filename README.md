@@ -87,7 +87,7 @@ all-zero mix, which put its pitches a semitone sharp; for a solo vocal the mix i
 them; segments with no usable text are dropped. It is not in the DMRN+21 abstract.
 transcPybe v2's settings were chosen on vocadito, Molina and RWC-P dev; SSVD test and MIR-ST500 test were held out.
 CREPE [20], pYIN [21] and PESTO [22] are its interchangeable pitch trackers; its
-networks were trained only on M4Singer [23] and GTSinger [24] singing, mixed over MUSDB18
+networks were trained only on M4Singer [23] and GTSinger [24] singing, mixed over MUSDB18-HQ
 [25] accompaniment. Phoneme-informed runs on a CPU only after a one-line patch to its checkpoint loading.
 
 ### References
@@ -116,7 +116,7 @@ networks were trained only on M4Singer [23] and GTSinger [24] singing, mixed ove
 22. Riou, A., Lattner, S., Hadjeres, G., Peeters, G. (2023). PESTO: Pitch Estimation With Self-Supervised Transposition-Equivariant Objective. *International Society for Music Information Retrieval Conference (ISMIR 2023)*. https://doi.org/10.5281/zenodo.10265343
 23. Zhang, L., Li, R., Wang, S., Deng, L., Liu, J., Ren, Y., et al. (2022). M4Singer: A Multi-Style, Multi-Singer and Musical Score Provided Mandarin Singing Corpus. *Advances in Neural Information Processing Systems*, 6914–6926. https://doi.org/10.52202/068431-0501
 24. Zhang, Y., Pan, C., Guo, W., Li, R., Zhu, Z., Wang, J., et al. (2024). GTSinger: A Global Multi-Technique Singing Corpus with Realistic Music Scores for All Singing Tasks. *Advances in Neural Information Processing Systems*, 1117–1140. https://doi.org/10.52202/079017-0034
-25. Rafii, Z., Liutkus, A., Stöter, F.-R., Mimilakis, S. I., Bittner, R. (2017). MUSDB18 - a corpus for music separation. *Zenodo*. https://doi.org/10.5281/zenodo.1117372
+25. Rafii, Z., Liutkus, A., Stöter, F.-R., Mimilakis, S. I., Bittner, R. (2019). MUSDB18-HQ - an uncompressed version of MUSDB18. *Zenodo*. https://doi.org/10.5281/zenodo.3338373
 <!-- results:end -->
 
 ## Scoring a system

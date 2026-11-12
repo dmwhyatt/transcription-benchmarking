@@ -1,6 +1,7 @@
 # YourMT3+ in this benchmark
 
-Prepared 12 November 2026 on musix. Smoke-tested only; no full set has been run.
+Prepared 12 November 2026 on musix, and run on all five sets the same day. Its scores and timing are in the
+README's results table; the smoke test below came first.
 
 ## What runs
 
