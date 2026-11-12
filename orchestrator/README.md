@@ -114,7 +114,7 @@ is going to fail fails here for the price of a coffee rather than an hour.
 About 70 minutes, of which omnizart is 39.
 
 **9. The transcPybe versions.** Pin them by commit, not by branch: branches
-move, and `docs/transcpybe-v1.md` reports a specific commit.
+move.
 
 ```shell
 for v in v1:6fe3e12 v2:fc9a9df v3:70b4df2; do
@@ -167,8 +167,8 @@ memory before each GPU system for this reason.
 ## What has been run
 
 **The full sweep, on vocadito, 14 September 2026.** Ten systems over forty
-recordings. `docs/transcpybe-v1.md` has the result and what it does and does
-not support. Two figures reproduced numbers obtained by hand through a
+recordings. The current results, fifteen systems on five datasets, are in the
+top-level README. Two figures reproduced numbers obtained by hand through a
 different path -- transcPybe 0.591 against 0.589, ROSVOT 0.262 against 0.262 --
 which is the evidence that the orchestration is not moving the measurement.
 
@@ -372,4 +372,4 @@ remarkable model.
 - **Annotation pairing is the corpus's problem, not this tool's.** Where
   references live in a parallel tree with colliding stems, the benchmark
   refuses to guess and reports the items as unpaired; use `--annotations-json`
-  or `--pairs`, as `docs/benchmarking-rosvot.md` does.
+  or `--pairs`.

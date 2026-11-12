@@ -13,5 +13,10 @@ dist/
 results/
 *.result.json
 
-# Orchestrator sweeps: images' output, checkpoints, logs.
+# Orchestrator sweeps: images' output, checkpoints, logs. One work directory
+# per corpus -- they must not share, or `table` lists two corpora's rows as
+# though they were comparable -- so the pattern is matched, not just the name.
+# An unignored one makes every result on that corpus read "<commit>-dirty",
+# which is the provenance quietly saying it cannot be traced to a commit.
 bench-work/
+bench-work-*/

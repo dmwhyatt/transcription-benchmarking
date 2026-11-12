@@ -11,9 +11,9 @@ against the same references at the same tolerances, read against the same
 inter-annotator ceiling. What cannot be done is answering it from the papers.
 ROSVOT reports COnPOff 77.4 on M4Singer, two annotators agree at 64.2 on
 vocadito, and those two numbers describe datasets rather than systems. Nothing
-below is therefore ranked by accuracy, because on shared audio no accuracy has
-been measured yet -- these are ranked by what it costs to get each one running,
-which is the order to run them in and not a prediction of the result.
+below is ranked by accuracy. The accuracy measured since, on five datasets, is
+in the README's results table; [What was run](#what-was-run) says which of the
+systems below that covers, and why the others were not run.
 
 vocadito is the venue that makes the comparison fair, and that is a checked
 claim rather than a hope: **no system in this survey trains on vocadito**. The
@@ -179,41 +179,28 @@ The repository facts below are reproducible; the discovery process is not.
 citation chasing rather than search, so older work is covered less evenly than
 work from 2024 onward.
 
-## Run order
+## What was run
 
-Ranked by what it costs to turn each one into a number, which is the order to
-run them in. It is not a prediction of how they will place.
+Fifteen of the twenty-six were run and scored; the results are in the README's
+table. The other eleven, and why:
 
-| # | System | Why it is next | Cost to run |
-|---|--------|----------------|-------------|
-| 1 | **Basic Pitch** | Installed and ran here, first try. Instrument-agnostic, and the baseline CREPE Notes measures itself against. | `pip install basic-pitch` |
-| 2 | **GAME** (OpenVPI) | The most recent singing-specific system that transcribes a whole directory to MIDI in one command, MIT, explicitly built for separated or noisy vocals. | clone + checkpoint from releases |
-| 3 | **MIR-ST500 baseline** (york135) | Pretrained weights committed *in the repository* -- no Drive link, no Baidu. One command per file, MIDI out. | clone + `do_everything.py` |
-| 4 | **STARS** | ROSVOT's successor, built on ROSVOT's code by an overlapping group. The `metadata.json` runner in `docs/benchmarking-rosvot.md` transfers almost unchanged. | clone + HuggingFace checkpoints |
-| 5 | **Essentia** `PitchContourSegmentation` | Zero-friction non-neural entrant; got all eight synthetic notes right. Puts a number on what the pre-neural state of the art does on this corpus. | `pip install essentia` |
-| 6 | **Phoneme-informed** (seyong92) | Its whole thesis is the onset-convention problem that cost ROSVOT 0.09 COnP here. High diagnostic value wherever it places. | clone + Git LFS checkpoint |
-| 7 | **CREPE Notes** | Architecturally the closest cousin to an f0-tracker-plus-segmenter, so it measures whether this pipeline's shape or its details are doing the work. Four install blockers; not run here. | an afternoon |
+| System | Why it was not run |
+|---|---|
+| VOCANO | Another version of a system that was run: its README says the work now ships as Omnizart's `vocal` model. |
+| basic-pitch-ts | Another version of a system that was run: Basic Pitch's model in TypeScript. |
+| NeuralNote | Another version of a system that was run: a plugin wrapping Basic Pitch's model. |
+| tuneflow singing-transcription-plugin | Another version of a system that was run: a DAW wrapper around the MIR-ST500 model (york135, ICASSP 2021). |
+| Vocal2Midi | Another version of a system that was run: a desktop pipeline around GAME's note extraction, adding lyric recognition and alignment. |
+| MusicYOLO | Weights not publicly downloadable: its checkpoints are on Baidu Pan only. |
+| SVT_SpeechBrain | Weights not publicly downloadable: its checkpoints are available on request. |
+| VocalParse | No timed notes: it writes note values against a predicted tempo, not times in seconds. |
+| Sheet Sage | No timed notes: its melody is a beat-quantised lead sheet. |
+| MT3 | Not trained on singing: its training mix is instrumental only. |
+| Audio-to-midi (bill317996) | Not pursued: a 2019 vocal melody extractor (MSnet) on Python 3.6 and torch 1.0. |
 
-Below that line: **Omnizart** (`vocal`) via its Docker image since pip fails,
-**YourMT3+** if you want a multi-instrument model that claims direct vocal
-transcription, and **VocalParse** if you are willing to write a token-sequence
-to MIDI converter for a 1.7B checkpoint.
-
-`orchestrator/` runs this list: one pinned image per system, the same
-read-only audio into all of them, MIDI out under one naming convention, then
-`--estimates` and a paired comparison of every pair. Ten of the systems below
-have images; the rest are registered with what is missing.
-
-**This has now been run.** `docs/transcpybe-v1.md` has the result: ten systems
-over vocadito's forty recordings, and what it does and does not establish.
-
-Run them all before believing any ordering among them, and be careful about
-what the ordering supports. Forty recordings support "COnP 0.59, 95% CI
-0.54-0.64"; they do not support "0.59 beats 0.58". Seven systems is
-twenty-one pairwise comparisons, and at 95% intervals about one in twenty
-separates two systems that are actually level -- so read `--compare`, which
-bootstraps the paired difference, rather than eyeballing a league table of
-overlapping intervals.
+The fifteen run were Phoneme-informed, the MIR-ST500 model, CTC_CE_for_AST,
+Tony, YourMT3+, GAME, Omnizart `vocal`, SOME, Kum et al.'s teacher-student
+model, Basic Pitch, Essentia, CREPE Notes, ROSVOT, aubio and STARS.
 
 ## Singing-specific note transcription
 
@@ -236,8 +223,8 @@ the framework PyTorch unless stated.
 | [VocalParse](https://github.com/pymaster17/VocalParse) | Apache-2.0 | 2026-06-16 | token sequence | HuggingFace | S5 |
 | [SVT_SpeechBrain](https://github.com/guxm2021/SVT_SpeechBrain) | Apache-2.0 | 2024-08-30 | note events | on request | S3 |
 
-**ROSVOT** (Li et al., ACL 2024) is the one already scored -- see
-`docs/benchmarking-rosvot.md`. Trained on M4Singer only, in the checkpoint its
+**ROSVOT** (Li et al., ACL 2024) was the first one scored, on vocadito in
+September 2026. Trained on M4Singer only, in the checkpoint its
 authors publish, and it carries M4Singer's annotation convention with it: its
 notes arrived 66 ms wider than vocadito's references, 41 ms early at the start.
 Everything in this section that trains on M4Singer should be expected to do the

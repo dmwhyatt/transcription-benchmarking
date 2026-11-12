@@ -204,6 +204,14 @@ def pair_dataset(
     # whole corpus against a hundred-odd files without failing.
     in_dir: Dict[Tuple[str, str], Path] = {}
     in_dir_normalised: Dict[Tuple[str, str], Path] = {}
+    # Two mirrored trees -- annotations under their own root, audio under
+    # another, both laid out one directory per song -- have matching relative
+    # paths and nothing else to match on. The same-directory rule above keys on
+    # the absolute parent, so it cannot fire across roots, and the bare stem is
+    # ambiguous 700 ways. This is the tier that makes M4Singer scoreable when
+    # the audio has been staged elsewhere.
+    by_relative: Dict[str, Path] = {}
+    by_relative_normalised: Dict[str, Path] = {}
     by_stem: Dict[str, Path] = {}
     by_normalised: Dict[str, Path] = {}
     stem_counts: Dict[str, int] = {}
@@ -213,6 +221,14 @@ def pair_dataset(
         in_dir_normalised.setdefault((str(path.parent), _normalise(path.stem)), path)
         by_stem.setdefault(path.stem, path)
         by_normalised.setdefault(_normalise(path.stem), path)
+        try:
+            relative = path.relative_to(annotation_root).with_suffix("")
+        except ValueError:
+            relative = None
+        if relative is not None:
+            by_relative.setdefault(str(relative), path)
+            by_relative_normalised.setdefault(
+                str(relative.parent / _normalise(relative.name)), path)
         stem_counts[path.stem] = stem_counts.get(path.stem, 0) + 1
         key = _normalise(path.stem)
         normalised_counts[key] = normalised_counts.get(key, 0) + 1
@@ -224,10 +240,25 @@ def pair_dataset(
         annotation, how = None, ""
         here = str(audio.parent)
         normalised = _normalise(audio.stem)
+        try:
+            audio_relative = audio.relative_to(audio_dir).with_suffix("")
+        except ValueError:
+            audio_relative = None
+        relative_key = str(audio_relative) if audio_relative is not None else None
+        relative_normalised = (
+            str(audio_relative.parent / _normalise(audio_relative.name))
+            if audio_relative is not None else None)
+
         if (here, audio.stem) in in_dir:
             annotation, how = in_dir[(here, audio.stem)], "exact"
+        elif relative_key is not None and relative_key in by_relative:
+            annotation, how = by_relative[relative_key], "exact"
         elif (here, normalised) in in_dir_normalised:
             annotation, how = in_dir_normalised[(here, normalised)], "tag-stripped"
+        elif (relative_normalised is not None
+              and relative_normalised in by_relative_normalised):
+            annotation, how = (by_relative_normalised[relative_normalised],
+                               "tag-stripped")
         elif audio.stem in by_stem and stem_counts[audio.stem] == 1:
             annotation, how = by_stem[audio.stem], "exact"
         elif normalised in by_normalised and normalised_counts[normalised] == 1:

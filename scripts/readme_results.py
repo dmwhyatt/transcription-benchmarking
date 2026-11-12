@@ -1,0 +1,172 @@
+"""Regenerate the README's results section (between the results markers) from scores.json, timing.jsonl and
+references.bib.
+
+    python scripts/readme_results.py           # rewrite the section in README.md
+    python scripts/readme_results.py --check   # exit 1 if README.md's section differs from what these files give
+
+The table comes from results_table.py. References are numbered in the order of CITED and formatted from the
+BibTeX: authors as surname and initials (six, then et al.), title, venue, pages, DOI.
+"""
+from __future__ import annotations
+
+import argparse
+import pathlib
+import re
+import sys
+
+from results_table import load, table
+
+HERE = pathlib.Path(__file__).resolve().parent
+README = HERE.parent / "README.md"
+# (label, BibTeX key or repository URL): systems in table order, then datasets and metric, then transcPybe's parts
+CITED = [("Phoneme-informed", "yong2023phoneme"), ("MIR-ST500 model", "wang2021mirst500"), ("CTC-CE", "wang2023ctcce"),
+         ("Tony", "mauch2015tony"), ("YourMT3+", "chang2024yourmt3"), ("GAME", "https://github.com/openvpi/GAME"),
+         ("Omnizart", "wu2021omnizart"), ("SOME", "https://github.com/openvpi/SOME"), ("Kum et al.", "kum2022pseudo"),
+         ("Basic Pitch", "bittner2022basicpitch"), ("Essentia", "bogdanov2013essentia"),
+         ("CREPE Notes", "riley2023crepenotes"), ("ROSVOT", "li2024rosvot"), ("aubio", "brossier2019aubio"),
+         ("STARS", "guo2025stars"), ("vocadito", "bittner2021vocadito"), ("Molina", "molina2014evaluation"),
+         ("SSVD v2.0", "wang2022musicyolo"), ("RWC-P", "goto2002rwc"), ("CREPE", "kim2018crepe"), ("pYIN", "mauch2014pyin"),
+         ("PESTO", "riou2023pesto"), ("M4Singer", "zhang2022m4singer"), ("GTSinger", "zhang2024gtsinger"),
+         ("MUSDB18-HQ", "rafii2019musdb18hq")]
+
+
+def bibtex(text: str) -> dict:
+    """{key: {field: value}} from a BibTeX file, for the fields this formatter reads."""
+    def fields(body):
+        out, pos = {}, 0
+        while True:
+            m = re.compile(r"(\w+)\s*=\s*").search(body, pos)
+            if not m:
+                return out
+            k, j = m.group(1).lower(), m.end()
+            if j < len(body) and body[j] in "{\"":
+                depth, q = 0, j
+                while q < len(body):
+                    ch = body[q]
+                    if body[j] == "{":
+                        depth += ch == "{"
+                        depth -= ch == "}"
+                        if depth == 0:
+                            break
+                    elif ch == '"' and q > j:
+                        break
+                    q += 1
+                out[k], pos = body[j + 1:q], q + 1
+            else:
+                mm = re.compile(r"[^,\n}]+").match(body, j)
+                out[k], pos = mm.group(0).strip(), mm.end()
+
+    entries = {}
+    for m in re.finditer(r"@(\w+)\{([^,]+),", text):
+        start, depth, q = m.end(), 1, m.end()
+        while depth and q < len(text):
+            depth += text[q] == "{"
+            depth -= text[q] == "}"
+            q += 1
+        entries[m.group(2).strip()] = fields(text[start:q - 1])
+    return entries
+
+
+def clean(s: str) -> str:
+    return re.sub(r"\s+", " ", re.sub(r"[{}]", "", s)).strip()
+
+
+def authors(a: str) -> str:
+    names = [clean(n) for n in re.split(r"\s+and\s+", a.replace("\n", " "))]
+
+    def short(n):
+        if "," in n:
+            last, first = [x.strip() for x in n.split(",", 1)]
+        else:
+            parts = n.split()
+            last, first = parts[-1], " ".join(parts[:-1])
+        ini = " ".join("-".join(q[0] + "." for q in part.split("-") if q)
+                       for part in first.split() if part and part[0].isalpha()) if first else ""
+        return f"{last}, {ini}".strip().rstrip(",")
+
+    shown = [short(n) for n in names if n.lower() != "others"]
+    return ", ".join(shown[:6]) + (", et al." if len(shown) > 6 or "others" in a else "")
+
+
+def reference(e: dict) -> str:
+    venue = clean(e.get("booktitle") or e.get("journal") or e.get("howpublished") or e.get("publisher") or "")
+    pages = clean(e.get("pages", "")).replace("--", "–")
+    doi = clean(e.get("doi", "")).lower()
+    s = f"{authors(e['author'])} ({clean(e['year'])}). {clean(e['title'])}. *{venue}*"
+    if e.get("volume") and e.get("journal"):
+        s += f", {clean(e['volume'])}"
+    if pages:
+        s += f", {pages}"
+    s += "."
+    if doi:
+        s += f" https://doi.org/{doi}"
+    return s
+
+
+def section() -> str:
+    bib = bibtex((HERE / "references.bib").read_text(encoding="utf-8"))
+    num, refs = {}, []
+    for n, (label, key) in enumerate(CITED, 1):
+        num[label] = n
+        refs.append(f"{n}. OpenVPI. {label}. {key} (no paper; cited by repository)" if key.startswith("https://")
+                    else f"{n}. {reference(bib[key])}")
+    cite = lambda label: f"[{num[label]}]"
+    scores, records = load()
+    rows = table(scores, records, cite=lambda row: f" {cite(row)}" if row in num else "")
+    return f"""<!-- results:begin (generated by scripts/readme_results.py from scripts/scores.json; do not edit by hand) -->
+### Datasets and scoring
+
+- **Datasets.** vocadito {cite('vocadito')} (40 excerpts, both annotators), Molina {cite('Molina')} (38), SSVD v2.0
+  test {cite('SSVD v2.0')} (127), the RWC-P {cite('RWC-P')} development half (48 songs with notes) and MIR-ST500 test
+  {cite('MIR-ST500 model')} (the 82 of its 100 songs still online). The two pop sets are lead vocals separated with
+  BS-RoFormer; every system gets the same stems.
+- **Score.** COnPOff@50 at whole semitones {cite('Molina')}: onset within 50 ms, pitch within 50 cents, offset within
+  20% of the note's length or 50 ms. Macro-averaged over recordings. *A cappella* averages vocadito (its two annotators
+  averaged), Molina and SSVD; *pop* averages RWC-P and MIR-ST500; the five-set mean averages all five.
+- **Intervals.** 95%, paired bootstrap over recordings, stratified by dataset, 10,000 resamples, seed 0.
+- **Time.** Seconds of computation per minute of audio, model loading included, on 10 Molina recordings and 2 RWC-P
+  songs (12.1 min), on 8 cores of an AMD Ryzen 9 5900X, with (GPU) or without (CPU) an NVIDIA RTX 3080. –: not run on
+  that device (no GPU path in the package or image, or a GPU is required).
+
+### Results
+
+{chr(10).join(rows)}
+
+- \\* Trained on other recordings from one of the test datasets: phoneme-informed on SSVD; the MIR-ST500 model and CTC-CE
+on MIR-ST500 songs 1–400; YourMT3+ trains on MIR-ST500 songs 1–400 and validates on 401–500, the test songs.
+- † vocadito's note references were made by correcting Tony's output, so Tony's vocadito scores measure agreement with
+the annotation tool. Its mean and a cappella average leave vocadito out (four datasets; with vocadito, 0.452). Tony's
+default note settings were chosen on Molina's dataset.
+- CTC-CE ran with its mix channel fixed (`orchestrator/images/ctc-ce/Dockerfile`): with separation off, upstream feeds the model an
+all-zero mix, which put its pitches a semitone sharp; for a solo vocal the mix is the vocal.
+- ‡ STARS needs lyrics. It ran on lyrics transcribed by SenseVoiceSmall, the repository's own route for audio without
+them; segments with no usable text are dropped. It is not in the DMRN+21 abstract.
+- transcPybe v2's settings were chosen on vocadito, Molina and RWC-P dev; SSVD test and MIR-ST500 test were held out.
+CREPE {cite('CREPE')}, pYIN {cite('pYIN')} and PESTO {cite('PESTO')} are its interchangeable pitch trackers; its
+networks were trained only on M4Singer {cite('M4Singer')} and GTSinger {cite('GTSinger')} singing, mixed over MUSDB18-HQ
+{cite('MUSDB18-HQ')} accompaniment.
+- Phoneme-informed runs on a CPU only after a one-line patch to its checkpoint loading.
+
+### References
+
+{chr(10).join(refs)}
+<!-- results:end -->
+"""
+
+
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--check", action="store_true", help="report whether README.md is current; change nothing")
+    args = ap.parse_args(argv)
+    readme = README.read_text(encoding="utf-8")
+    new = re.sub(r"<!-- results:begin.*?<!-- results:end -->\n", lambda _: section(), readme, count=1, flags=re.S)
+    if args.check:
+        print("README.md's results section is current" if new == readme else "README.md's results section is stale")
+        return 0 if new == readme else 1
+    README.write_text(new, encoding="utf-8")
+    print("README.md's results section rewritten")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
