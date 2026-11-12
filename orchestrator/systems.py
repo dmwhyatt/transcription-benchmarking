@@ -243,19 +243,32 @@ SYSTEMS: List[System] = [
     # -------------------------------------------------------------- planned
     System(
         name="stars",
-        title="STARS (Findings of ACL 2025)",
-        licence="MIT",
+        approx_gb=7.0,
+        title="STARS (Guo et al., Findings of ACL 2025)",
+        licence="MIT (SenseVoiceSmall, used for its lyrics: FunASR model licence)",
         gpu=True,
         cpu_ok=False,
-        status=BLOCKED,
-        checkpoint=Checkpoint(kind="hf", ref="verstar/STARS"),
-        notes="Blocked, and the survey was too optimistic about it. Its "
-              "metadata.json wants word and phoneme sequences per item, and "
-              "the helper that produces them (scripts/process_ch.py) is for "
-              "Chinese. Resolve before writing the image: can inference run "
-              "with words omitted, as ROSVOT can via --apply_rwbd? If not, "
-              "vocadito needs a phonemiser and that is a decision, not a "
-              "detail.",
+        checkpoint=Checkpoint(
+            kind="manual",
+            manual_hint=(
+                "Three ungated HuggingFace repos at pinned revisions: the STARS "
+                "bilingual checkpoint and RMVPE (verstar/STARS), SenseVoiceSmall "
+                "(FunAudioLLM/SenseVoiceSmall) and fsmn-vad (funasr/fsmn-vad).\n"
+                "  Run bench-work-stars-prep-20261112/ckpt/stars/fetch.sh inside the "
+                "directory below; the adapter finds each model at any depth."),
+        ),
+        tested=True,
+        docker_args=["--cpus", "8"],     # musix: leave the rest of the CPU to others
+        notes="STARS cannot run from audio alone: it force-aligns a phoneme "
+              "sequence and its note decoder uses that alignment. The adapter "
+              "takes the repository's own route for audio without lyrics "
+              "(scripts/process_ch.py): fsmn-vad cuts 8-20 s segments, "
+              "SenseVoiceSmall transcribes them, scripts/mixedtext2phoneme.py "
+              "phonemises the text, then inference/stars.py with the bilingual "
+              "checkpoint at its defaults. Segments with no recognised text are "
+              "dropped, as process_ch drops them; adapter.json counts them. "
+              "CUDA required (process_ch hardcodes cuda:0). See "
+              "images/stars/NOTES.md.",
     ),
     System(name="some", title="SOME (OpenVPI)", licence="MIT", gpu=True,
            cpu_ok=True, status=READY, tested=False, approx_gb=6.0,
@@ -319,11 +332,30 @@ SYSTEMS: List[System] = [
                  "and the code imports tensorflow.keras, so the image installs "
                  "no standalone keras. Written from upstream source, never "
                  "built."),
-    System(name="yourmt3", title="YourMT3+ (MLSP 2024)", licence="GPL-3.0",
-           gpu=True, cpu_ok=False, status=PLANNED,
-           checkpoint=Checkpoint(kind="hf", ref="mimbres/YourMT3"),
-           notes="Code for YourMT3+ is pre-release behind a link in issue #2; "
-                 "pin whatever you use."),
+    System(
+        name="yourmt3",
+        approx_gb=8.4,
+        title="YourMT3+ (Chang et al., MLSP 2024), YPTF.MoE+Multi (noPS), singing programs only",
+        licence="GPL-3.0",
+        gpu=True,
+        cpu_ok=True,
+        tested=True,
+        docker_args=["--cpus", "8"],      # musix: leave the rest of the CPUs to others
+        checkpoint=Checkpoint(
+            kind="url",
+            ref="https://huggingface.co/spaces/mimbres/YourMT3/resolve/"
+                "5e66c1ea173a8186e0d20432b841d3180cc015b5/amt/logs/2024/"
+                "mc13_256_g4_all_v7_mt3f_sqr_rms_moe_wf4_n8k2_silu_rope_rp_b36_nops/"
+                "checkpoints/last.ckpt",
+        ),
+        notes="Code from the authors' HF Space at a pinned revision (the GitHub "
+              "repo points there as the pre-release). Multi-instrument output; "
+              "the adapter keeps programs 100 and 101 (singing melody, chorus), "
+              "as the authors' own singing evaluation does, and records what it "
+              "dropped. Trained on MIR-ST500 songs 1-400 and validated on "
+              "401-500: its MIR-ST500 test score is on its own dataset. "
+              "See images/yourmt3/NOTES.md. sha256 ae38e415...fc25.",
+    ),
     System(name="vocalparse", title="VocalParse (2026)", licence="Apache-2.0",
            gpu=True, cpu_ok=False, status=PLANNED,
            checkpoint=Checkpoint(kind="hf", ref="pymaster/VocalParse"),
@@ -354,12 +386,21 @@ SYSTEMS: List[System] = [
            checkpoint=Checkpoint(kind="manual", manual_hint="On request from the authors."),
            notes="Audio-only mode is the relevant one; the video path needs "
                  "N20EM."),
-    System(name="tony", title="pYIN note track via sonic-annotator",
-           licence="GPL-2.0+", status=PLANNED,
-           checkpoint=Checkpoint(kind="in-image"),
-           notes="Check for circularity on vocadito first: its annotations "
-                 "may have been made in Tony, in which case this measures "
-                 "agreement with an editing tool."),
+    System(
+        name="tony",
+        approx_gb=0.3,
+        title="Tony: pYIN note tracker (Mauch et al., TENOR 2015)",
+        licence="GPL-2.0",
+        checkpoint=Checkpoint(kind="in-image"),
+        tested=True,
+        notes="pYIN's notes output through Sonic Annotator, with the parameters "
+              "and audio conditioning Tony itself applies (44.1 kHz, peak "
+              "normalised; see images/tony/NOTES.md). CIRCULAR ON VOCADITO: its "
+              "note references were made by correcting Tony's output, and most "
+              "reference onsets coincide with this image's to the millisecond. "
+              "Molina is Tony's development set: its note defaults were chosen "
+              "by a grid search there. Single-threaded, about 1 s per minute.",
+    ),
 ]
 
 

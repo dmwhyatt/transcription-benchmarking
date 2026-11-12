@@ -1,0 +1,24 @@
+    System(
+        name="yourmt3",
+        approx_gb=8.4,
+        title="YourMT3+ (Chang et al., MLSP 2024), YPTF.MoE+Multi (noPS), singing programs only",
+        licence="GPL-3.0",
+        gpu=True,
+        cpu_ok=True,
+        tested=True,
+        docker_args=["--cpus", "8"],      # musix: leave the rest of the CPUs to others
+        checkpoint=Checkpoint(
+            kind="url",
+            ref="https://huggingface.co/spaces/mimbres/YourMT3/resolve/"
+                "5e66c1ea173a8186e0d20432b841d3180cc015b5/amt/logs/2024/"
+                "mc13_256_g4_all_v7_mt3f_sqr_rms_moe_wf4_n8k2_silu_rope_rp_b36_nops/"
+                "checkpoints/last.ckpt",
+        ),
+        notes="Code from the authors' HF Space at a pinned revision (the GitHub "
+              "repo points there as the pre-release). Multi-instrument output; "
+              "the adapter keeps programs 100 and 101 (singing melody, chorus), "
+              "as the authors' own singing evaluation does, and records what it "
+              "dropped. Trained on MIR-ST500 songs 1-400 and validated on "
+              "401-500: its MIR-ST500 test score is on its own dataset. "
+              "See images/yourmt3/NOTES.md. sha256 ae38e415...fc25.",
+    ),

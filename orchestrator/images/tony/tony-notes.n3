@@ -1,0 +1,53 @@
+# pYIN's "notes" output with the parameters Tony sets before it analyses a file.
+#
+# Source: Tony main/Analyser.cpp (sonic-visualiser/tony, branch default,
+# Analyser::analyseExistingFile), with Tony's analysis settings at their
+# defaults (getAnalysisSettings: precision off, low-amplitude suppression on,
+# onset sensitivity on, duration pruning on):
+#   step 256, block 2048
+#   precisetime 0        (precision-analysis off)
+#   lowampsuppression 0.2 (lowamp-analysis on; the plugin's own default is 0.1)
+#   onsetsensitivity 0.7 (onset-analysis on)
+#   prunethresh 0.1      (prune-analysis on)
+# Tony sets nothing else, so fixedlag, outputunvoiced and threshdistr are the
+# plugin's defaults at the pYIN commit Tony pins (c4dm/pyin 1d68cac).
+# Generated from `sonic-annotator -s vamp:pyin:pyin:notes`, with only
+# lowampsuppression changed.
+@prefix xsd:      <http://www.w3.org/2001/XMLSchema#> .
+@prefix vamp:     <http://purl.org/ontology/vamp/> .
+@prefix :         <#> .
+
+:transform a vamp:Transform ;
+    vamp:plugin <http://vamp-plugins.org/rdf/plugins/pyin#pyin> ;
+    vamp:step_size "256"^^xsd:int ; 
+    vamp:block_size "2048"^^xsd:int ; 
+    vamp:plugin_version """3""" ; 
+    vamp:parameter_binding [
+        vamp:parameter [ vamp:identifier "fixedlag" ] ;
+        vamp:value "1"^^xsd:float ;
+    ] ;
+    vamp:parameter_binding [
+        vamp:parameter [ vamp:identifier "lowampsuppression" ] ;
+        vamp:value "0.2"^^xsd:float ;
+    ] ;
+    vamp:parameter_binding [
+        vamp:parameter [ vamp:identifier "onsetsensitivity" ] ;
+        vamp:value "0.7"^^xsd:float ;
+    ] ;
+    vamp:parameter_binding [
+        vamp:parameter [ vamp:identifier "outputunvoiced" ] ;
+        vamp:value "0"^^xsd:float ;
+    ] ;
+    vamp:parameter_binding [
+        vamp:parameter [ vamp:identifier "precisetime" ] ;
+        vamp:value "0"^^xsd:float ;
+    ] ;
+    vamp:parameter_binding [
+        vamp:parameter [ vamp:identifier "prunethresh" ] ;
+        vamp:value "0.1"^^xsd:float ;
+    ] ;
+    vamp:parameter_binding [
+        vamp:parameter [ vamp:identifier "threshdistr" ] ;
+        vamp:value "2"^^xsd:float ;
+    ] ;
+    vamp:output <http://vamp-plugins.org/rdf/plugins/pyin#pyin_output_notes> .
