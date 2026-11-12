@@ -60,6 +60,7 @@ transcPybe (ours: v2 with each of its pitch trackers, and the rules-only v1).
 | transcPybe v2, CREPE | 0.473 | 0.573 | 0.670 | 0.347 | 0.568 | 0.354 | 0.587 | 0.350 | **0.492** [0.479, 0.505] | 3.0 | 65.5 |
 | transcPybe v2, PESTO | 0.467 | 0.574 | 0.693 | 0.348 | 0.601 | 0.348 | 0.605 | 0.348 | **0.502** [0.488, 0.516] | 2.1 | 4.4 |
 | transcPybe v2, pYIN | 0.481 | 0.580 | 0.675 | 0.339 | 0.609 | 0.391 | 0.605 | 0.365 | **0.509** [0.495, 0.523] | 10.6 | 10.9 |
+| CTC-CE [3]\* | 0.312 | 0.433 | 0.629 | 0.359 | 0.504 | 0.538 | 0.502 | 0.449 | **0.481** [0.465, 0.496] | 6.8 | 3.6 |
 | MIR-ST500 model [2]\* | 0.320 | 0.443 | 0.534 | 0.371 | 0.453 | 0.474 | 0.456 | 0.422 | **0.443** [0.427, 0.458] | 5.9 | 3.3 |
 | Tony [4] † | 0.686 | 0.654 | 0.466 | 0.266 | 0.582 | 0.276 | 0.524 | 0.271 | **0.397**† [0.383, 0.412] | – | 1.1 |
 | YourMT3+ [5]\* | 0.275 | 0.350 | 0.464 | 0.328 | 0.410 | 0.426 | 0.395 | 0.377 | **0.388** [0.373, 0.403] | 3.0 | 21.8 |
@@ -74,14 +75,14 @@ transcPybe (ours: v2 with each of its pitch trackers, and the rules-only v1).
 | ROSVOT [13] | 0.184 | 0.204 | 0.189 | 0.154 | 0.082 | 0.109 | 0.155 | 0.132 | **0.146** [0.137, 0.155] | 1.6 | – |
 | aubio [14] | 0.061 | 0.060 | 0.086 | 0.019 | 0.106 | 0.026 | 0.084 | 0.022 | **0.059** [0.055, 0.064] | – | 0.4 |
 | STARS [15] ‡ | 0.064 | 0.076 | 0.068 | 0.038 | 0.084 | 0.088 | 0.074 | 0.063 | **0.070** [0.062, 0.078] | – | – |
-| CTC-CE [3] | … | … | … | … | … | … | … | … | … | 6.8 | 3.6 |
 
 \* Trained on other recordings from one of the test datasets: phoneme-informed on SSVD; the MIR-ST500 model and CTC-CE
 on MIR-ST500 songs 1–400; YourMT3+ trains on MIR-ST500 songs 1–400 and validates on 401–500, the test songs.
 † vocadito's note references were made by correcting Tony's output, so Tony's vocadito scores measure agreement with
 the annotation tool. Its mean and a cappella average leave vocadito out (four datasets; with vocadito, 0.452). Tony's
 default note settings were chosen on Molina's dataset.
-CTC-CE: rerunning with its mix-channel fix (`images/ctc-ce/Dockerfile`); its row fills in when the run finishes.
+CTC-CE ran with its mix channel fixed (`images/ctc-ce/Dockerfile`): with separation off, upstream feeds the model an
+all-zero mix, which put its pitches a semitone sharp; for a solo vocal the mix is the vocal.
 ‡ STARS needs lyrics. It ran on lyrics transcribed by SenseVoiceSmall, the repository's own route for audio without
 them; segments with no usable text are dropped. It is not in the DMRN+21 abstract.
 transcPybe v2's settings were chosen on vocadito, Molina and RWC-P dev; SSVD test and MIR-ST500 test were held out.
