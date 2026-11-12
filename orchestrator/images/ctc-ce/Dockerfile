@@ -74,10 +74,24 @@ RUN pip install --no-cache-dir "librosa" "mido" "PyYAML" "tqdm" "numpy<2" \
     && python3 -c "import h5py, librosa, mido, yaml, numpy; \
 print('h5py', h5py.__version__, '| numpy', numpy.__version__)"
 
-ARG CTC_CE_REV=main
+ARG CTC_CE_REV=320a89537b35559801cc58f9732b3ff9354506b2
 RUN git clone https://github.com/york135/CTC_CE_for_AST /app \
     && git -C /app checkout "$CTC_CE_REV" \
     && git -C /app rev-parse HEAD > /app/REVISION
+
+# The mix channel. The model reads two CQT stacks: the lead vocal and the full mix (vocal plus accompaniment), as it was
+# trained. With separation off (do_svs: False, which this image needs: no Spleeter), upstream's get_feature_from_mixture
+# feeds an all-zero mix instead, which the model never saw; on vocadito that put 61% of matched notes a semitone sharp
+# and 8% on pitch, and synthetic tones came out wrong. For a solo vocal the mix IS the vocal, which is what upstream
+# itself computes with separation on (separated vocal + accompaniment), so the vocal is passed as both. Measured
+# 12 November 2026: tones all correct, 74% of matched vocadito notes on pitch. Thresholds and checkpoint untouched.
+RUN python3 - <<'PY'
+p = "/app/data_utils/get_feature.py"
+s = open(p).read()
+a = "cqt_data = self.get_all_feature_from_array(y, np.zeros(y.shape))"
+assert s.count(a) == 1, "upstream changed: re-check the mix channel before building"
+open(p, "w").write(s.replace(a, "cqt_data = self.get_all_feature_from_array(y, y)  # solo vocal: the mix is the vocal"))
+PY
 
 COPY adapter.py /adapter.py
 ENV HOME=/cache MPLCONFIGDIR=/cache NUMBA_CACHE_DIR=/cache

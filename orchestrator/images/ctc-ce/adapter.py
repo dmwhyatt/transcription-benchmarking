@@ -177,7 +177,8 @@ def main():
          "checkpoint": str(checkpoint), "config": str(config_path),
          "onset_thres": config.get("onset_thres"),
          "offset_thres": config.get("offset_thres"),
-         "overrides": {"do_svs": False, "tomidi": True},
+         "overrides": {"do_svs": False, "tomidi": True,
+                       "mix_channel": "the vocal itself (image patch; upstream feeds zeros when do_svs is off)"},
          "items": rows}, indent=2))
     failed = [r for r in rows if r["status"] != "ok"]
     print(f"\n{len(rows) - len(failed)}/{len(rows)} transcribed")
