@@ -9,14 +9,13 @@ they were obtained, and explains how to apply the benchmark to other data and sy
 ### System selection
 
 A systematic survey ([`docs/vocal-transcription-tools.md`](docs/vocal-transcription-tools.md)) identified 48 candidate
-systems. Of these, 26 were runnable, produced note-level output and were applicable to singing. Eleven of the 26 were
+systems. Of these, 25 were runnable, produced note-level output and were applicable to singing. Ten of the 25 were
 not run:
 
 - five are other versions of a system that was run;
 - two have weights that are not publicly available;
 - two do not produce timed notes;
-- one was not trained on singing;
-- one, a 2019 melody extractor, was not pursued.
+- one was not trained on singing.
 
 The survey's [What was run](docs/vocal-transcription-tools.md#what-was-run) table lists each of these systems with the
 reason. The remaining fifteen were evaluated.

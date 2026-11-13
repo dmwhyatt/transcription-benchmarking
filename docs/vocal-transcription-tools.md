@@ -72,7 +72,9 @@ Queries as issued. "New" lists what each query surfaced that earlier queries had
 ### Exclusion criteria
 
 - **E1. f0 estimators without segmentation.** CREPE, pYIN, RMVPE, PESTO, PENN, torchcrepe, SPICE and Praat fail I1.
-  They appear only as components of systems that do segment notes.
+  They appear only as components of systems that do segment notes. Audio-to-midi is also excluded under E1: it is an
+  application of the MSnet melody extractor whose notes come from an undocumented rounding rule rather than a
+  segmentation method.
 - **E2. Closed or commercial software.** Melodyne, AnthemScore, Klangio, Dubler and the audio-to-MIDI functions of
   digital audio workstations. This is a decision about the survey's scope, not a judgement of relevance: these are the
   tools most musicians use, and the survey makes no claim about them.
@@ -85,19 +87,23 @@ Queries as issued. "New" lists what each query surfaced that earlier queries had
 
 Forty-eight candidates were identified:
 
-- **Twenty-six met criteria I1–I4,** and are described below: thirteen singing-specific systems, ten general systems,
-  and three that were noted but not pursued.
+- **Twenty-five met criteria I1–I4,** and are described below: thirteen singing-specific systems, ten general
+  systems, and two that were noted but not pursued.
 - **Four are published without obtainable code.**
-- **Eighteen were excluded under E1–E4:** eight f0 estimators, five commercial products, one piano-specific model, and
+- **Nineteen were excluded under E1–E4:** nine f0 estimators, five commercial products, one piano-specific model, and
   four datasets or training-only repositories.
 
 Screening proceeded in three passes: title and README, then repository inspection, then installation. No candidate
 was excluded on the evidence of its abstract alone, and none was included on the evidence of its README alone; every
 included repository was read.
 
+**Amendment, 13 November 2026.** Audio-to-midi was first counted among the candidates that met I1–I4, as one of three
+noted but not pursued. Reading its code showed that it is an f0 estimator with an undocumented note rule, and that the
+MIDI it writes is mistimed, so it was reclassified under E1. The counts above include this change.
+
 ### Excluded candidates
 
-The eighteen excluded candidates are listed individually, so that each exclusion can be examined. Several are
+The nineteen excluded candidates are listed individually, so that each exclusion can be examined. Several are
 nonetheless important: the f0 estimators excluded under E1 are components of many of the included systems.
 
 | Candidate | Criterion | Reason | Found via |
@@ -110,6 +116,7 @@ nonetheless important: the f0 estimators excluded under E1 are components of man
 | [torchcrepe](https://github.com/maxrmorrison/torchcrepe) | E1 | f0 only. An alternative backend for CREPE Notes. | link from the crepe_notes README |
 | SPICE | E1 | f0 only; self-supervised, distributed as a TensorFlow Hub model rather than a transcription system. | prior knowledge |
 | Praat / Parselmouth | E1 | f0 only. Widely used, but does not produce notes. | prior knowledge |
+| [Audio-to-midi](https://github.com/bill317996/Audio-to-midi) (bill317996) | E1 | f0 in substance. A demonstration application around MSnet, a melody extraction network (Hsieh, Su and Yang, ICASSP 2019) that outputs one pitch every 23.22 ms. Notes are formed by an undocumented rule: rounding to the nearest semitone and keeping runs of three frames or more. Its MIDI places frames on a 22.06 ms grid (170 BPM, 16 steps per beat), so every time is 5% early. Reclassified on 13 November 2026; see the amendment above. | S4 |
 | Melodyne (Celemony) | E2 | Closed and commercial. The professional standard for note-level vocal editing, and the most significant omission from this survey. | prior knowledge |
 | AnthemScore | E2 | Closed and commercial. | prior knowledge |
 | Klangio / Melody Scanner | E2 | Closed and commercial; available only through an API and the web. | prior knowledge |
@@ -141,8 +148,8 @@ Two of these exclusions would merit reconsideration if the survey's scope change
 
 ## What was run
 
-Fifteen of the twenty-six systems were run and scored; the results are in the README's table. The other eleven were
-not run, for the following reasons:
+Fifteen of the twenty-five systems were run and scored; the results are in the README's table. The other ten were not
+run, for the following reasons:
 
 | System | Reason |
 |---|---|
@@ -156,7 +163,6 @@ not run, for the following reasons:
 | VocalParse | No timed notes: it produces note values against a predicted tempo, not times in seconds. |
 | Sheet Sage | No timed notes: its melody is a beat-quantised lead sheet. |
 | MT3 | Not trained on singing: its training data are instrumental only. |
-| Audio-to-midi (bill317996) | Not pursued: a 2019 vocal melody extractor (MSnet) requiring Python 3.6 and torch 1.0. |
 
 The fifteen systems evaluated were:
 
@@ -366,9 +372,7 @@ It serves as a lower reference.
 - **Overlap with vocadito:** vocadito's note annotations were produced by correcting Tony's output, so Tony's scores on
   vocadito measure agreement with the annotation tool, and the results table excludes vocadito from Tony's mean.
 
-Three further systems met the criteria but were not pursued:
-- [bill317996/Audio-to-midi](https://github.com/bill317996/Audio-to-midi) (MIT): vocal melody extraction with MSnet,
-  requiring Python 3.6 and torch 1.0.
+Two further systems met the criteria but were not pursued:
 - [tuneflow/singing-transcription-plugin](https://github.com/tuneflow/singing-transcription-plugin): a wrapper for a
   digital audio workstation around the MIR-ST500 model.
 - [Xiantaidu/Vocal2Midi](https://github.com/Xiantaidu/Vocal2Midi): a desktop tool for vocal-to-MIDI extraction with
