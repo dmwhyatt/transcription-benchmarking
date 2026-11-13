@@ -39,7 +39,8 @@ COLUMNS = ["vocadito A1", "vocadito A2", "Molina", "RWC-P dev", "SSVD test", "MI
 DATASETS = ["vocadito", "Molina", "RWC-P dev", "SSVD test", "MIR-ST500 test"]
 B, SEED = 10_000, 0
 NO_VOCADITO = {"Tony"}
-TRACKER_ROWS = ["transcPybe v2, PESTO", "transcPybe v2, pYIN"]    # listed under transcPybe v2, CREPE
+# transcPybe v2's other pitch trackers: ranked with every row in the table, left out of the neighbour tests
+TRACKER_ROWS = ["transcPybe v2, PESTO", "transcPybe v2, pYIN"]
 LAST = ["STARS"]                                                   # listed last whatever its score
 MARK = {"Phoneme-informed": "\\*", "MIR-ST500 model": "\\*", "YourMT3+": "\\*", "CTC-CE": "\\*", "Tony": " †",
         "STARS": " ‡"}
@@ -122,9 +123,8 @@ def summaries(scores: dict) -> dict:
 
 
 def order(summary: dict) -> list:
-    ranked = sorted((r for r in summary if r not in TRACKER_ROWS + LAST), key=lambda r: -summary[r]["mean"])
-    i = ranked.index("transcPybe v2, CREPE") + 1
-    return ranked[:i] + TRACKER_ROWS + ranked[i:] + LAST
+    """Every row by its mean, best first (Tony by its mean without vocadito), then LAST."""
+    return sorted((r for r in summary if r not in LAST), key=lambda r: -summary[r]["mean"]) + LAST
 
 
 def table(scores: dict, records: list, cite=lambda row: "") -> list:
