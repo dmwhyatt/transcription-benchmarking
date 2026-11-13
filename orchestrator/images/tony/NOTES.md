@@ -1,63 +1,74 @@
-# Tony (pYIN note tracker), 12 November 2026
+# Tony (pYIN note tracker)
 
-What runs: the pYIN Vamp plugin's `notes` output, hosted by Sonic Annotator 1.7
-(official release), with pYIN built at the commit Tony pins (c4dm/pyin
-`1d68cac`, tag v1.2). CPU only, single-threaded, no checkpoint, no network.
-GPL-2.0 (Tony, pYIN); Sonic Annotator GPL-2.0-or-later.
+Prepared 12 November 2026.
 
-## Parameters, all from Tony's own source
+- **What runs:** the `notes` output of the pYIN Vamp plugin, hosted by Sonic Annotator 1.7 (official release). pYIN is
+  built at the commit Tony pins (c4dm/pyin `1d68cac`, tag v1.2).
+- **Execution:** CPU only and single-threaded, with no checkpoint and no network access.
+- **Licences:** Tony and pYIN are GPL-2.0; Sonic Annotator is GPL-2.0 or later.
 
-`main/Analyser.cpp` (sonic-visualiser/tony, branch `default`), with Tony's
-analysis settings at their defaults: step 256, block 2048, `precisetime` 0,
-`lowampsuppression` 0.2 (the plugin's own default is 0.1), `onsetsensitivity`
-0.7, `prunethresh` 0.1. Everything else is the plugin default at that commit
-(`fixedlag` 1, `threshdistr` 2, `outputunvoiced` 0). Nothing tuned here.
+## Parameters
 
-`main/MainWindow.cpp` also conditions the audio: resample on load to a fixed
-44100 Hz, and peak-normalise. The adapter does both (soxr VHQ; Sonic
-Annotator `--normalise`). This matters: pYIN's low-amplitude suppression is an
-absolute RMS threshold, so the unnormalised output depends on recording level.
+All parameters are taken from Tony's own source (`main/Analyser.cpp` in sonic-visualiser/tony, branch `default`), with
+Tony's analysis settings at their defaults. None was tuned for this benchmark.
 
-## Circularity: do not report Tony on vocadito as a transcription result
-
-vocadito (Bittner et al. 2021, sec. 2.2.2): "Note annotations were also
-created using Tony, which similarly for f0, uses an algorithm to estimate note
-events and allows an annotator to correct the estimates."
-
-Measured on the smoke pair (vocadito_1, vocadito_2), this image's output
-against the references:
-
-| | A1 | A2 |
+| Parameter | Value | Note |
 |---|---|---|
-| reference onsets within 1 ms of a Tony onset, vocadito_1 | 0.86 | 0.72 |
-| reference onsets within 1 ms of a Tony onset, vocadito_2 | 0.68 | 0.62 |
+| step | 256 | |
+| block | 2048 | |
+| `precisetime` | 0 | |
+| `lowampsuppression` | 0.2 | the plugin's own default is 0.1 |
+| `onsetsensitivity` | 0.7 | |
+| `prunethresh` | 0.1 | |
+| `fixedlag`, `threshdistr`, `outputunvoiced` | 1, 2, 0 | the plugin's defaults at that commit |
+
+Tony also prepares the audio (`main/MainWindow.cpp`): it resamples to 44,100 Hz on loading, and normalises the peak
+level. The adapter does both, with soxr at very high quality and Sonic Annotator's `--normalise`. Normalisation matters
+because pYIN's low-amplitude suppression is an absolute RMS threshold, so without it the output would depend on the
+recording level.
+
+## Overlap with vocadito and Molina
+
+### vocadito
+
+vocadito's note annotations were made with Tony. Its paper (Bittner et al., 2021, section 2.2.2) states that note
+annotations were created using Tony, which estimates note events and allows an annotator to correct them.
+
+On two vocadito recordings, this image's output agrees with the references as follows:
+
+| | Annotator 1 | Annotator 2 |
+|---|---|---|
+| Reference onsets within 1 ms of a Tony onset, vocadito_1 | 0.86 | 0.72 |
+| Reference onsets within 1 ms of a Tony onset, vocadito_2 | 0.68 | 0.62 |
 | COnPOff F, both recordings | 0.832 | 0.640 |
 
-The references are, to the millisecond, largely Tony's output left as it was.
-That also confirms this image reproduces Tony. Its vocadito scores measure how
-much the annotators changed, not transcription.
+Two conclusions follow:
+- Many reference onsets are Tony's output, unchanged to the millisecond.
+- This image therefore reproduces Tony.
 
-Molina (Molina et al. 2014, sec. 2.2.2): "we have transcribed the audio
-recordings with a baseline algorithm (Section 4.2), and then all the
-transcription errors have been corrected by an expert musician". The baseline
-is YIN with notes formed by rounding to the nearest MIDI note, not Tony (which
-postdates it). But Tony's note defaults were chosen on Molina: Mauch et al.
-2015, sec. 5.1, compare methods "using a publicly available dataset [24]"
-([24] = Molina et al. 2014) and "ran 16 different versions of Tony's note
-transcription algorithm, a grid search of 4 parameter settings for each of the
-two post-processing methods"; s = 0.7 and 100 ms pruning come from that grid.
-So Molina is Tony's development set, as vocadito and Molina are for transcPybe.
+Tony's scores on vocadito measure how much the annotators changed its output, rather than transcription accuracy, and
+the results table excludes vocadito from Tony's mean.
 
-## Checks run
+### Molina
 
-- Smoke: 2/2 vocadito files, 52 notes each; 0.59 and 0.55 s for 33 and 35 s of
-  audio, about 1.0 s per minute of audio including Sonic Annotator's start-up.
-- A 48 kHz stereo float copy of vocadito_1, scaled by 2.4, gave the same 52
-  notes (all within 6 ms, same semitone), so the resample, mixdown and
-  normalise path holds for the pop stems' formats.
+Molina's annotations were produced by correcting the output of a baseline algorithm: YIN, with notes formed by rounding
+to the nearest MIDI note (Molina et al., 2014, section 2.2.2). That baseline is not Tony, which postdates it.
+
+However, Tony's default note settings were selected on Molina's dataset. Mauch et al. (2015, section 5.1) compare
+methods on that dataset, and ran sixteen versions of Tony's note transcription algorithm, a grid of four settings for
+each of two post-processing methods. The onset sensitivity of 0.7 and the 100 ms pruning threshold come from that grid.
+Molina is therefore a development set for Tony, as vocadito and Molina are for transcPybe.
+
+## Verification
+
+- **Speed:** both of the two vocadito recordings produced 52 notes, in 0.59 s and 0.55 s for 33 s and 35 s of audio.
+  That is about 1.0 s per minute of audio, including Sonic Annotator's start-up.
+- **Input formats:** a 48 kHz stereo floating-point copy of vocadito_1, scaled by 2.4, gave the same 52 notes, all
+  within 6 ms and on the same semitone. Resampling, mixing down to mono and normalisation therefore behave as intended
+  for the formats of the separated pop stems.
 
 ## Output
 
-`midi/<item>.mid` with pitch rounded to the nearest semitone, as every other
-adapter writes it; `notes/<item>.csv` keeps pYIN's unrounded pitch
-(onset_s, offset_s, midi_float) for any measured-pitch comparison.
+- `midi/<item>.mid`: pitch rounded to the nearest semitone, as every other adapter writes it.
+- `notes/<item>.csv`: pYIN's unrounded pitch (`onset_s`, `offset_s`, `midi_float`), for comparisons that use measured
+  pitch.
