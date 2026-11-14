@@ -214,9 +214,9 @@ export TRANSCPYBE_SRC=~/transcpybe     # or place the checkout at ../transcpybe
 This allows any revision to be measured, including uncommitted work. Other systems can be built the same way: give
 the registry entry a `build_context_env`, and use a Dockerfile that copies the build context (`COPY . /src`).
 
-transcPybe was developed alongside this benchmark. Its version 2 settings were selected on vocadito, Molina and the
-RWC-P development set, as the README's results notes state, so its scores on those datasets are not estimates of
-performance on unseen recordings.
+transcPybe was developed alongside this benchmark. Its version 2 settings were selected on vocadito, Molina, the
+RWC-P development set and SSVD's training and validation recordings, as the notes in RESULTS.md state, so its scores
+on the first three are not estimates of performance on unseen recordings.
 
 ## Reading the results
 
@@ -255,7 +255,8 @@ point estimate of the agreement, so their intervals reflect each system's uncert
   `--shm-size` changes the allocation.
 - **Timing.** The times recorded by `transcribe` are wall-clock times and do not compare speed fairly. Images differ
   in how much work they do at start-up, and a system that processes a batch loads its model once, whereas a per-file
-  adapter loads it for every file. The README's timing columns were measured separately, with model loading included.
+  adapter loads it for every file. The timing columns in RESULTS.md were measured separately, with model loading
+  included.
 - **`--limit N`.** This takes the first N recordings, which on a corpus ordered by song may all come from one song. It
   is intended for trial runs; the benchmark's `--sample` draws across the corpus.
 - **Pairing.** Where references are stored in a parallel tree with repeated file names, the benchmark reports the

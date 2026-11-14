@@ -6,7 +6,7 @@ each one, and determines which of them this benchmark can evaluate. It was condu
 The survey does not rank systems by accuracy. Published results are reported on different datasets and under different
 annotation conventions, so they describe datasets as much as systems. For example, ROSVOT reports a COnPOff of 77.4 on
 M4Singer, while two annotators of vocadito agree with each other at 64.2. Accuracy measured under a common procedure is
-reported in the README. [What was run](#what-was-run) lists the systems that the README's table covers, and gives the
+reported in the README and [RESULTS.md](../RESULTS.md). [What was run](#what-was-run) lists the systems that those tables cover, and gives the
 reason for each system that was not run.
 
 ## Method
@@ -148,7 +148,7 @@ Two of these exclusions would merit reconsideration if the survey's scope change
 
 ## What was run
 
-Fifteen of the twenty-five systems were run and scored; the results are in the README's table. The other ten were not
+Fifteen of the twenty-five systems were run and scored; the results are in the README and RESULTS.md. The other ten were not
 run, for the following reasons:
 
 | System | Reason |
@@ -370,7 +370,8 @@ It serves as a lower reference.
 - **Automatic component:** the note output of the pYIN Vamp plugin, which runs without the interface under
   sonic-annotator.
 - **Overlap with vocadito:** vocadito's note annotations were produced by correcting Tony's output, so Tony's scores on
-  vocadito measure agreement with the annotation tool, and the results table excludes vocadito from Tony's mean.
+  vocadito measure agreement with the annotation tool. RESULTS.md excludes vocadito from Tony's mean, and the README's
+  table, which averages vocadito, Molina and RWC-P, leaves Tony out.
 
 Two further systems met the criteria but were not pursued:
 - [tuneflow/singing-transcription-plugin](https://github.com/tuneflow/singing-transcription-plugin): a wrapper for a
@@ -406,7 +407,7 @@ The training data of each system, as far as they were established:
 | SOME, GAME | OpenVPI community data | not verified |
 
 No system in the survey was found to train on vocadito, which was released in 2021 as an evaluation set. The overlaps
-that affect the five datasets used in the benchmark are marked in the README's results table.
+that affect the five datasets used in the benchmark are marked in RESULTS.md.
 
 ### Annotation conventions
 

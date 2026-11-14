@@ -6,7 +6,7 @@ Findings of ACL 2025 (arXiv 2507.06670).
 - **Code:** github.com/gwx314/STARS, MIT licence, pinned to f0e43e9 (18 August 2026). It is built on ROSVOT by an
   overlapping group of authors.
 - **Status:** prepared on 12 November 2026, and run on all five datasets after the corrections described under
-  [Failure handling](#failure-handling) (`run_five_r2.sh`). Its scores are in the README's results table, marked ‡.
+  [Failure handling](#failure-handling) (`run_five_r2.sh`). Its scores are in the results tables (README and RESULTS.md), marked ‡.
 
 ## Lyrics
 
