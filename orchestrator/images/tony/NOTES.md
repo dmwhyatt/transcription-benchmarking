@@ -46,8 +46,9 @@ Two conclusions follow:
 - Many reference onsets are Tony's output, unchanged to the millisecond.
 - This image therefore reproduces Tony.
 
-Tony's scores on vocadito measure how much the annotators changed its output, rather than transcription accuracy, and
-the results table excludes vocadito from Tony's mean.
+Tony's scores on vocadito measure how much the annotators changed its output, rather than transcription accuracy.
+RESULTS.md therefore excludes vocadito from Tony's mean, and the README's table, which averages vocadito, Molina and
+RWC-P, leaves Tony out.
 
 ### Molina
 

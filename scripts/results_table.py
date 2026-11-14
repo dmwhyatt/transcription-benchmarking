@@ -1,7 +1,8 @@
-"""The README's results table, recomputed from each system's per-recording scores and the timing records.
+"""The results tables, recomputed from each system's per-recording scores and the timing records.
 
-    python scripts/results_table.py           # the table, as markdown
-    python scripts/results_table.py --tests   # and the paired tests between neighbours in the ranking
+    python scripts/results_table.py           # the full table (RESULTS.md), as markdown
+    python scripts/results_table.py --common  # the README's table: the datasets no system was trained on
+    python scripts/results_table.py --tests   # and the paired tests between neighbours in the full table's ranking
 
 Inputs, beside this file:
 - scores.json: COnPOff@50 for every row of the table, per dataset and recording, computed with this package's
@@ -12,6 +13,10 @@ Scores. A dataset's score is the mean over its recordings, with vocadito's two a
 *A cappella* averages vocadito, Molina and SSVD test; *pop* averages RWC-P dev and MIR-ST500 test; the five-set mean
 averages all five. Tony leaves vocadito out of its mean and its a cappella average: vocadito's references were made by
 correcting Tony's output.
+
+Common set. The README's table, and the DMRN+21 abstract's, average the three datasets that no system was trained on:
+vocadito, Molina and RWC-P dev. Tony is left out of it, because vocadito's references were made by correcting its
+output and a mean over the other two would not be comparable with the rest.
 
 Intervals. A paired bootstrap over recordings, stratified by dataset. Each of 10,000 resamples draws every dataset's
 recordings with replacement, the same draw for every row, and the datasets are drawn in the order of DATASETS from one
@@ -41,6 +46,7 @@ B, SEED = 10_000, 0
 NO_VOCADITO = {"Tony"}
 # transcPybe v2's other pitch trackers: ranked with every row in the table, left out of the neighbour tests
 TRACKER_ROWS = ["transcPybe v2, PESTO", "transcPybe v2, pYIN"]
+COMMON = ["vocadito", "Molina", "RWC-P dev"]                       # the datasets no system was trained on
 LAST = ["STARS"]                                                   # listed last whatever its score
 MARK = {"Phoneme-informed": "\\*", "MIR-ST500 model": "\\*", "YourMT3+": "\\*", "CTC-CE": "\\*", "Tony": " †",
         "STARS": " ‡"}
@@ -122,6 +128,29 @@ def summaries(scores: dict) -> dict:
     return out
 
 
+def common_summaries(scores: dict) -> dict:
+    """Each row's mean over COMMON, with its interval, from the same resamples as ``summaries``; Tony is left out."""
+    rows, point, boot = bootstrap(scores)
+    pt, bt = sum(point[n] for n in COMMON) / len(COMMON), sum(boot[n] for n in COMMON) / len(COMMON)
+    out = {}
+    for k, r in enumerate(rows):
+        if r not in NO_VOCADITO:
+            lo, hi = np.percentile(bt[:, k], [2.5, 97.5])
+            out[r] = dict(mean=float(pt[k]), lo=float(lo), hi=float(hi))
+    return out
+
+
+def common_table(scores: dict, cite=lambda row: "") -> list:
+    """The README's table: every row but Tony, by its mean over COMMON, with STARS last."""
+    summary = common_summaries(scores)
+    lines = ["| System | Mean | 95% CI |", "|---|---|---|"]
+    for r in order(summary):
+        s = summary[r]
+        mark = MARK.get(r, "") if r in LAST else ""
+        lines.append(f"| {r}{cite(r)}{mark} | {s['mean']:.3f} | [{s['lo']:.3f}, {s['hi']:.3f}] |")
+    return lines
+
+
 def order(summary: dict) -> list:
     """Every row by its mean, best first (Tony by its mean without vocadito), then LAST."""
     return sorted((r for r in summary if r not in LAST), key=lambda r: -summary[r]["mean"]) + LAST
@@ -168,10 +197,11 @@ def neighbour_tests(scores: dict) -> list:
 
 def main(argv=None) -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--common", action="store_true", help="print the README's table instead of the full one")
     ap.add_argument("--tests", action="store_true", help="also print the paired tests between neighbours")
     args = ap.parse_args(argv)
     scores, records = load()
-    print("\n".join(table(scores, records)))
+    print("\n".join(common_table(scores) if args.common else table(scores, records)))
     if args.tests:
         print("\nNeighbours in the ranking (Holm-corrected across all pairs; * differs at 0.05):")
         for t in neighbour_tests(scores):

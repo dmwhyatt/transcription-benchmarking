@@ -1,7 +1,7 @@
 # YourMT3+
 
-Prepared on 12 November 2026, and run on all five datasets the same day. Its scores and computation time are in the
-README's results table.
+Prepared on 12 November 2026, and run on all five datasets the same day. Its scores and computation time are in
+RESULTS.md, and its scores on the datasets no system was trained on are in the README.
 
 ## What runs
 

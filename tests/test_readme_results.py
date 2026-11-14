@@ -1,4 +1,5 @@
-"""The README's results section must be what scripts/ computes from the committed scores, timing and references."""
+"""The README's results section and RESULTS.md must be what scripts/ computes from the committed scores, timing and
+references."""
 import pathlib
 import subprocess
 import sys
