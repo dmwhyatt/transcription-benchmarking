@@ -129,25 +129,27 @@ def summaries(scores: dict) -> dict:
 
 
 def common_summaries(scores: dict) -> dict:
-    """Each row's mean over COMMON, with its interval, from the same resamples as ``summaries``; Tony is left out."""
+    """Each row's score on each of COMMON and its mean over them, with the mean's interval from the same resamples as
+    ``summaries``; Tony is left out."""
     rows, point, boot = bootstrap(scores)
     pt, bt = sum(point[n] for n in COMMON) / len(COMMON), sum(boot[n] for n in COMMON) / len(COMMON)
     out = {}
     for k, r in enumerate(rows):
         if r not in NO_VOCADITO:
             lo, hi = np.percentile(bt[:, k], [2.5, 97.5])
-            out[r] = dict(mean=float(pt[k]), lo=float(lo), hi=float(hi))
+            out[r] = dict(columns={n: float(point[n][k]) for n in COMMON}, mean=float(pt[k]), lo=float(lo), hi=float(hi))
     return out
 
 
 def common_table(scores: dict, cite=lambda row: "") -> list:
     """The README's table: every row but Tony, by its mean over COMMON, with STARS last."""
     summary = common_summaries(scores)
-    lines = ["| System | Mean | 95% CI |", "|---|---|---|"]
+    lines = ["| System | " + " | ".join(COMMON) + " | Mean | 95% CI |", "|---" * (len(COMMON) + 3) + "|"]
     for r in order(summary):
         s = summary[r]
         mark = MARK.get(r, "") if r in LAST else ""
-        lines.append(f"| {r}{cite(r)}{mark} | {s['mean']:.3f} | [{s['lo']:.3f}, {s['hi']:.3f}] |")
+        cells = [f"{s['columns'][n]:.3f}" for n in COMMON] + [f"{s['mean']:.3f}", f"[{s['lo']:.3f}, {s['hi']:.3f}]"]
+        lines.append(f"| {r}{cite(r)}{mark} | " + " | ".join(cells) + " |")
     return lines
 
 
